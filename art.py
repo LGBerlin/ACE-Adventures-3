@@ -91,7 +91,51 @@ def world(cv,place='square',battle=False,width=760,height=310):
    cv.create_rectangle(x-5,y,x+6,y+70,fill='#483f32',outline='')
    for rad,dy,col in [(33,-22,'#375947'),(27,-38,'#54735a'),(21,-53,'#638267')]:cv.create_oval(x-rad,y+dy-rad*.5,x+rad,y+dy+rad,fill=col,outline='#38513e',width=2)
  if battle:
-  character(cv,130,135,'Fighter',scale=3)
-  character(cv,w-210,135,'Vessel',scale=3)
-  cv.create_text(w/2,24,text='THE HOLLOW GUARDIAN',fill='#f2dfb1',font=('Georgia',17,'bold'))
+  cv.create_rectangle(0,h*.80,w,h,fill='#2f332f',outline='')
+  cv.create_line(w*.08,h*.80,w*.92,h*.80,fill='#c0a276',width=3)
  cv.create_rectangle(6,6,w-6,h-6,outline='#c2a070',width=4)
+def enemy(cv,x,y,name='Moss Goblin',seed=7,scale=3):
+ """Draw a distinct adversary silhouette without fabricated image assets."""
+ r=random.Random(seed)
+ boss='Guardian' in name
+ wolf='Wolf' in name
+ wisp='Wisp' in name
+ if boss:
+  color='#7b7883'
+  cv.create_polygon(x-25*scale,y+20*scale,x-18*scale,y-9*scale,x,y-23*scale,
+                    x+18*scale,y-9*scale,x+25*scale,y+20*scale,
+                    fill=color,outline='#d0b78e',width=3)
+  cv.create_polygon(x-18*scale,y-12*scale,x-24*scale,y-31*scale,x-6*scale,y-22*scale,
+                    x+6*scale,y-22*scale,x+24*scale,y-31*scale,x+18*scale,y-12*scale,
+                    fill='#a09278',outline='#ddbd7a',width=3)
+  for dx in (-9,9):
+   cv.create_oval(x+(dx-4)*scale,y-14*scale,x+(dx+4)*scale,y-8*scale,
+                  fill='#f1b96a',outline='')
+  cv.create_line(x,y-23*scale,x,y+16*scale,fill='#3f383e',width=max(2,scale))
+ elif wolf:
+  cv.create_oval(x-22*scale,y-9*scale,x+20*scale,y+11*scale,
+                 fill='#66665b',outline='#302a29',width=3)
+  cv.create_polygon(x-24*scale,y-8*scale,x-31*scale,y-26*scale,x-12*scale,y-16*scale,
+                    x+1*scale,y-21*scale,x+6*scale,y-7*scale,
+                    fill='#8d8a78',outline='#302a29',width=2)
+  for dx in (-14,13):
+   cv.create_line(x+dx*scale,y+8*scale,x+dx*scale,y+25*scale,fill='#514b45',width=scale*3)
+  cv.create_oval(x-22*scale,y-14*scale,x-18*scale,y-11*scale,fill='#e4b46b',outline='')
+ elif wisp:
+  for radius in (26,18,11):
+   cv.create_oval(x-radius*scale,y-radius*scale,x+radius*scale,y+radius*scale,
+                  outline='#bdd3ba',width=2)
+  cv.create_oval(x-13*scale,y-13*scale,x+13*scale,y+13*scale,
+                 fill='#81b6b0',outline='#d9ebc9',width=3)
+  cv.create_oval(x-4*scale,y-4*scale,x+4*scale,y+4*scale,fill='#f7edbb',outline='')
+ else:
+  cv.create_oval(x-14*scale,y-18*scale,x+14*scale,y+13*scale,
+                 fill='#5c8163',outline='#344737',width=3)
+  cv.create_polygon(x-13*scale,y-12*scale,x-27*scale,y-28*scale,x-22*scale,y+2*scale,
+                    fill='#69866a',outline='#344737',width=2)
+  cv.create_polygon(x+13*scale,y-12*scale,x+27*scale,y-28*scale,x+22*scale,y+2*scale,
+                    fill='#69866a',outline='#344737',width=2)
+  for dx in (-7,7):
+   cv.create_oval(x+(dx-3)*scale,y-7*scale,x+(dx+3)*scale,y-3*scale,
+                  fill='#edc276',outline='')
+ return 'guardian' if boss else 'wolf' if wolf else 'wisp' if wisp else 'goblin'
