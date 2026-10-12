@@ -18,18 +18,22 @@ def apply(root,manifest,fetch,origin):
     dest=base/'versions'/version
     if dest.exists():raise ValueError('Version already installed')
     files=manifest['files'];entries=[];seen=set();total_bytes=0
+    if not isinstance(files,list):raise ValueError('Invalid add-on file list')
     trusted=urllib.parse.urlsplit(origin)
     if trusted.scheme!='https' or not trusted.netloc or trusted.username or trusted.password or trusted.query or trusted.fragment:
         raise ValueError('Invalid trusted origin')
     if not files or len(files)>500:raise ValueError('Invalid file count')
     for item in files:
+        if not isinstance(item,dict):raise ValueError('Invalid add-on file entry')
         path=item['path'];url=item['url'];expected=item['sha256']
+        if not isinstance(url,str) or not isinstance(expected,str):raise ValueError('Invalid URL or checksum type')
         if not valid_path(path) or path in seen:raise ValueError('Invalid or duplicate add-on path')
         seen.add(path)
         parsed=urllib.parse.urlsplit(url)
         if parsed.scheme!='https' or parsed.netloc!=trusted.netloc or parsed.username or parsed.password or parsed.query or parsed.fragment or not parsed.path.startswith(trusted.path.rstrip('/')+'/'):raise ValueError('Untrusted add-on source')
         if len(expected)!=64 or any(ch not in '0123456789abcdef' for ch in expected):raise ValueError('Invalid checksum')
         blob=fetch(url)
+        if not isinstance(blob,bytes):raise ValueError('Non-binary update payload')
         if len(blob)>20_000_000 or hashlib.sha256(blob).hexdigest()!=expected:raise ValueError('Checksum mismatch')
         total_bytes+=len(blob)
         if total_bytes>80_000_000:raise ValueError('Add-on exceeds size limit')
