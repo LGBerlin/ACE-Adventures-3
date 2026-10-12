@@ -134,7 +134,7 @@ class App(tk.Tk):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
   self.label(f,h['name'],20).pack(padx=14)
-  self.label(f,h['path']+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+  self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for name in ['Record','Pack','Abilities','Journal','Story Tree']:
