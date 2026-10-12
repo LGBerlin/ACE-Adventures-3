@@ -1,7 +1,30 @@
 """Deterministic quest progression, separate from the narrative model."""
 import dungeon_master
+import json
+from pathlib import Path
 STAGES=('Speak with Elder Sera','Question Mira at the Lantern & Thistle','Inspect the old well','Confront the Hollow Guardian','Report to Elder Sera')
 PLACES={'square':('Village Square','Elder Sera'), 'tavern':('Lantern & Thistle','Mira'), 'market':('Apothecary','Yarrow'), 'well':('Old Well',''), 'forest':('Ashwood Path','')}
+DEFAULT_FLAVOUR={
+ 'square':'The sound of distant bells drifts over rain-dark cobblestones.',
+ 'tavern':'The hearth glows, and the innkeeper watches every stranger.',
+ 'market':'Bundles of dried herbs hang above the crowded shop counter.',
+ 'well':'Moss grows thick between the weathered stones.',
+ 'forest':'The roots twist across the path, as if guarding something below.'}
+
+def flavour(c,root):
+    """Optional data-only scene prose from the activated content pack."""
+    place=c.get('location','square')
+    fallback=DEFAULT_FLAVOUR.get(place,'')
+    try:
+        import update_addons
+        path=update_addons.active_asset(root,'stories/hollow-bell.json')
+        if path is None or path.stat().st_size>120_000:return fallback
+        data=json.loads(path.read_text(encoding='utf-8'))
+        loc=data.get('locations',{})
+        text=loc.get(place)
+        return text if isinstance(text,str) and 0<len(text)<=500 else fallback
+    except (OSError,ValueError,TypeError,KeyError):return fallback
+
 def ensure(c):
     c.setdefault('quest',{'stage':0,'completed':False});return c['quest']
 def journal(c):
