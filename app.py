@@ -3,7 +3,7 @@ import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -242,7 +242,7 @@ class App(tk.Tk):
    self.label(txt,'AVAILABLE ACTIONS',12).pack(anchor='w',pady=4)
    for thing in h['moves']:
     ability_row=tk.Frame(txt,bg=PARCH);ability_row.pack(fill='x',pady=2)
-    self.label(ability_row,'◆  '+thing,11).pack(side='left')
+    self.label(ability_row,'◆  '+ability_progression.display_name(h,thing),11).pack(side='left')
     self.button(ability_row,'USE',lambda move=thing:self._free('I use '+move),True).pack(side='right')
    for passive in h['passives']:
     self.label(txt,'◇  '+passive+' (passive)',10).pack(anchor='w',pady=2)
