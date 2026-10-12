@@ -55,6 +55,16 @@ def complete(c):
  c["turn"]+=1
  return c["history"][-1]
 
+def abandon(c):
+ """Only the optional guild assignment may be abandoned; main story is permanent."""
+ if not c.get("guild_job"):raise ValueError("No optional guild job to abandon.")
+ if c.get("enemy"):raise ValueError("Cannot abandon quests during combat.")
+ job=c["guild_job"]["name"]
+ c["guild_job"]=None
+ c["history"].append("Guild assignment abandoned: "+job)
+ c["turn"]+=1
+ return c["history"][-1]
+
 def active_quests(c):
  """The Hollow Bell main story plus at most one guild assignment."""
  import story
