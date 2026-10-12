@@ -5,7 +5,7 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme
+import visual_theme,battle_effects
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
@@ -133,17 +133,14 @@ class App(tk.Tk):
    art.enemy(cv,round(w*.78),round(h*.55),enemy['name'],self.c['world_seed'],size)
    cv.create_text(round(w*.75),round(h*.92),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',12,'bold'))
    if self.last_visual_cue:
-    cv.create_line(round(w*.30),round(h*.58),round(w*.68),round(h*.58),fill='#f0ce83',width=4,dash=(7,7))
+    effect=self.last_visual_cue.effect
+    if effect:
+     battle_effects.paint(cv,effect,round(w*.52),round(h*.49),getattr(self,'last_visual_tier',1))
+    elif self.last_visual_cue.action=='guard':
+     cv.create_oval(round(w*.12),round(h*.22),round(w*.32),round(h*.8),outline='#9ad1c2',width=4)
+    elif self.last_visual_cue.action=='attack':
+     cv.create_line(round(w*.30),round(h*.58),round(w*.68),round(h*.58),fill='#f0ce83',width=4,dash=(7,7))
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
-    # Upgraded abilities use visibly different static sigil geometry even
-    # when no optional animation sprite pack has been installed.
-    tier=getattr(self,'last_visual_tier',1)
-    if tier>1:
-     cx,cy=round(w*.47),round(h*.46)
-     for index in range(tier):
-      radius=24+index*16
-      cv.create_oval(cx-radius,cy-radius,cx+radius,cy+radius,outline='#ffcf70' if tier==2 else '#9ee7ef' if tier==3 else '#c8a2ff',width=2+index)
-     cv.create_text(cx,cy,text='✦' if tier==2 else '✧' if tier==3 else '✺',fill='#fff5ce',font=('Georgia',27,'bold'))
  def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page('The Hollow Bell')
