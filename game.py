@@ -174,6 +174,8 @@ def action(c,text,rng=None):
     if attack:
         import equipment
         modifier+=equipment.attack_bonus(hero)
+        import loot_system
+        modifier+=loot_system.bonuses(hero)['attack']
     dc=c['enemy']['ac'] if attack else 13
     roll=rng.randint(1,20);total=roll+modifier
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
