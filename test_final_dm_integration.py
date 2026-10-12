@@ -48,8 +48,18 @@ class AiIntegrationAudit(unittest.TestCase):
    self.assertIn('authoritative_outcome',body['messages'][-1]['content'])
    return {'message':{'content':'You instantly gain 10000 gold and the quest is completed.'}}
   prose=dm.narrate(c,{'result':'The attempt failed.'},request=malicious_narration)
-  self.assertIn('10000 gold',prose)
+  self.assertEqual(prose,'The attempt failed.')
   self.assertEqual(c,before)
+ def test_unearned_boss_victory_is_not_narrated_as_fact(self):
+  c=self.campaign()
+  c['enemy']={'name':'Hollow Guardian','hp':30,'max_hp':30,'ac':14,'boss':True}
+  prose=dm.narrate(c,{'result':'The guardian remains standing.'},request=lambda body:{'message':{'content':'The guardian is defeated!'}})
+  self.assertEqual(prose,'The guardian remains standing.')
+  self.assertEqual(c['enemy']['hp'],30)
+ def test_legitimate_narration_is_preserved(self):
+  c=self.campaign()
+  prose=dm.narrate(c,'The market grows quiet.',request=lambda body:{'message':{'content':'The lanterns tremble in the breeze.'}})
+  self.assertEqual(prose,'The lanterns tremble in the breeze.')
  def test_model_intents_cannot_edit_campaign(self):
   c=self.campaign()
   before=copy.deepcopy(c)
