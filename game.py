@@ -29,7 +29,7 @@ def character(name,age,kind,rng=None):
     stats={k:max(6,min(20,rng.randint(8,15)+b)) for k,b in zip(['STR','DEX','CON','INT','WIS','CHA'],bonuses)}
     hp=max(8,{'Rogue':18,'Mage':13,'Fighter':25,'Vessel':21}[kind]+(stats['CON']-10)//2+rng.randint(-2,2))
     mana=max(0,{'Rogue':6,'Mage':24,'Fighter':3,'Vessel':15}[kind]+rng.randint(-2,3))
-    return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':list(SPELLS[magic]) if kind=='Mage' else list(MOVES[path]),'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
+    return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':list(SPELLS[magic]) if kind=='Mage' else list(MOVES[path]),'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'equipment':{'weapon':{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind],'armor':None,'accessory':None},'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
 
 def award_experience(hero,amount):
     """Award XP via verified game rules, never from LLM narration."""
@@ -102,6 +102,23 @@ def use_item(c,item,hero_index=None):
     c['history'].append(message)
     c['turn']+=1
     return message
+
+EQUIPMENT_SLOTS={'Iron Sword':'weapon','Daggers':'weapon','Ashwood Staff':'weapon',
+                 'Pilgrim Staff':'weapon','Short Bow':'weapon','Leather Armor':'armor'}
+def equip(c,item):
+    """Equip owned gear outside combat; never trust a narrative grant."""
+    if not c.get('started'):raise ValueError('Start your adventure first.')
+    if c.get('enemy'):raise ValueError('You cannot change equipment in active combat.')
+    hero=c['characters'][c['active']]
+    if item not in hero.get('inventory',[]):raise ValueError('You do not own that item.')
+    slot=EQUIPMENT_SLOTS.get(item)
+    if slot is None:raise ValueError('That item is not equipable.')
+    equipment=hero.setdefault('equipment',{'weapon':None,'armor':None,'accessory':None})
+    equipment[slot]=item
+    result=f"{hero['name']} equips {item}."
+    c['history'].append(result)
+    c['turn']+=1
+    return result
 
 def _apply_incoming(hero,raw):
     """Consume the next-attack ward, without allowing persistent free immunity."""
