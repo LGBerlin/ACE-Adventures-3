@@ -175,7 +175,7 @@ class App(tk.Tk):
    for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['class']+' · '+hero['path'],16).pack(padx=18,pady=10)
    self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25)
    return
-  layout=tabletop_layout.for_window(self.winfo_width(),self.winfo_height(),len(self.c['characters']))
+  layout=tabletop_layout.for_window(self.winfo_width(),self.winfo_height(),len(self.c['characters']),in_battle=bool(self.c.get('enemy')))
   body=tk.Frame(self,bg=DARK)
   body.pack(fill='both',expand=True,padx=14,pady=10)
   right=tk.Frame(body,bg=DARK,width=layout.sidebar)
@@ -213,8 +213,8 @@ class App(tk.Tk):
   self.label(f,story.journal(self.c),15,wraplength=650).pack(anchor='w',padx=18,pady=5)
   self.label(f,story.flavour(self.c,DATA),12,wraplength=650).pack(anchor='w',padx=18,pady=4)
   historybox=tk.Frame(f,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
-  historybox.pack(fill='both',expand=True,padx=14,pady=(6,9))
-  history=tk.Text(historybox,font=('Georgia',12),bg=visual_theme.COLORS['parchment_light'],fg=INK,relief='flat',wrap='word',height=7,padx=10,pady=8)
+  historybox.pack(fill='both',expand=not bool(self.c.get('enemy')),padx=14,pady=(6,6))
+  history=tk.Text(historybox,font=('Georgia',12),bg=visual_theme.COLORS['parchment_light'],fg=INK,relief='flat',wrap='word',height=3 if self.c.get('enemy') else 7,padx=10,pady=8)
   history.pack(side='left',fill='both',expand=True)
   scroll=tk.Scrollbar(historybox,command=history.yview)
   scroll.pack(side='right',fill='y')
@@ -226,7 +226,7 @@ class App(tk.Tk):
   if self.c.get('enemy'):
    foe=self.c['enemy']
    battle=tk.Frame(f,bg=WOOD,highlightbackground=BRASS,highlightthickness=2)
-   battle.pack(fill='x',padx=14,pady=5)
+   battle.pack(fill='x',padx=14,pady=5,before=historybox)
    self.label(battle,'⚔  ENCOUNTER  ·  '+foe['name'].upper(),13,LIGHT,WOOD).pack(anchor='w',padx=10,pady=(7,2))
    phase=(' · PHASE '+str(foe.get('phase',1))) if foe.get('boss') else ''
    self.label(battle,'ENEMY HEALTH  '+str(foe['hp'])+'/'+str(foe.get('max_hp',foe['hp']))+phase,10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=2)
