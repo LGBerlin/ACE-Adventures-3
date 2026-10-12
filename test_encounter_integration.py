@@ -32,6 +32,21 @@ class EncounterIntegrationTests(unittest.TestCase):
   self.h["hp"]=1
   game.action(self.c,"I negotiate",self.MaxRoll())
   self.assertTrue(self.c["party_defeated"])
+ def test_defeated_party_can_recover_without_loot_or_quest_clear(self):
+  import interaction
+  self.c["quest"]={"stage":3,"completed":False}
+  self.h["hp"]=0
+  self.c["party_defeated"]=True
+  result=interaction.perform(self.c,"recover party")
+  self.assertFalse(result["roll_required"])
+  self.assertIsNone(self.c["enemy"])
+  self.assertEqual(self.c["location"],"square")
+  self.assertGreater(self.h["hp"],0)
+  self.assertEqual(self.c["quest"]["stage"],3)
+  self.assertNotIn("loot_history",self.c)
+ def test_cannot_retreat_while_still_fighting(self):
+  import interaction
+  with self.assertRaises(ValueError):interaction.perform(self.c,"recover party")
  def test_boss_phase_used_for_potion_reaction(self):
   self.c["enemy"]={"name":"Hollow Guardian","hp":10,"max_hp":30,"ac":14,"boss":True}
   self.h["hp"]=self.h["max_hp"]-10
