@@ -44,6 +44,8 @@ def select(c,choice):
         permitted={a for _,a in options(c)}
         if choice not in permitted:raise ValueError('That route is not available yet. Follow the clues.')
         c['location']=choice
+        import town_services
+        town_services.note_travel(c,choice)
         msg={'square':'You return to the cobblestone square, beneath the silent belfry.','tavern':'The inn smells of cider and wet wool. Mira watches the door.','market':'Yarrow sorts remedies beneath strings of dried herbs.','well':'The mossy stone well stands alone under crooked branches.','forest':'Ashwood grows quiet around a broken stone arch.'}[choice]
     elif choice=='elder' and p=='square' and choice in {a for _,a in options(c)}:
         if s==0:q['stage']=1;msg='Elder Sera asks you to investigate the tolling bell. Mira at the inn heard it first.';dungeon_master.discover(c,'Mira heard the bell first.')
