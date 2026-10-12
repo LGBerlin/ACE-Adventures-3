@@ -1,0 +1,90 @@
+name: Audit Nested Sprite Packs
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download original library
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p audit
+          gh release download assets-v1 --repo "${{ github.repository }}" --pattern 'sprites.2.zip' --dir audit
+      - name: Audit nested ZIP libraries and prepare small image contact sheet
+        run: |
+          python -m pip install --quiet Pillow
+          python - <<'PY'
+          import collections,csv,hashlib,io,json,pathlib,zipfile
+          from PIL import Image,ImageOps,ImageDraw
+          root=pathlib.Path('audit')
+          records=[]
+          summary=[]
+          thumbs=[]
+          licenses=[]
+          max_nested=150000
+          with zipfile.ZipFile(root/'sprites.2.zip') as outer:
+              outer_zips=[x for x in outer.infolist() if x.filename.startswith('sprites/') and x.filename.lower().endswith('.zip') and not x.is_dir()]
+              for outer_info in outer_zips:
+                  label=pathlib.PurePosixPath(outer_info.filename).name
+                  if outer_info.file_size>450_000_000:continue
+                  try:
+                      payload=outer.read(outer_info)
+                      with zipfile.ZipFile(io.BytesIO(payload)) as nested:
+                          files=nested.infolist()
+                          if len(files)>max_nested:raise ValueError('Too many nested files')
+                          counts=collections.Counter()
+                          valid=0;large=0
+                          for info in files:
+                              if info.is_dir():continue
+                              suffix=pathlib.PurePosixPath(info.filename).suffix.lower()
+                              counts[suffix]+=1
+                              if suffix in ('.png','.gif','.webp','.jpg','.jpeg') and info.file_size<=3_000_000:
+                                  valid+=1
+                                  if len([x for x in thumbs if x[0]==label])<6:
+                                      try:
+                                          with Image.open(io.BytesIO(nested.read(info))) as im:
+                                              if im.width>=16 and im.height>=16 and im.width*im.height<=16_000_000:
+                                                  img=im.convert('RGBA')
+                                                  img.thumbnail((140,112))
+                                                  thumbs.append((label,info.filename,img.copy()))
+                                      except Exception:pass
+                              elif info.file_size>3_000_000:large+=1
+                              if suffix in ('.txt','.md','.license','.lic') and any(word in info.filename.lower() for word in ('license','licence','credit','attribution','readme')):
+                                  licenses.append({'pack':label,'file':info.filename,'bytes':info.file_size})
+                              if suffix in ('.png','.gif','.webp','.jpg','.jpeg'):
+                                  records.append({'pack':label,'path':info.filename,'bytes':info.file_size,'type':suffix})
+                          summary.append({'pack':label,'entry_count':len(files),'usable_image_candidates':valid,'large_files':large,'extensions':dict(counts)})
+                  except Exception as error:
+                      summary.append({'pack':label,'error':str(error)})
+          with (root/'inner files.csv').open('w',newline='',encoding='utf-8') as fh:
+              writer=csv.DictWriter(fh,fieldnames=['pack','path','bytes','type']);writer.writeheader();writer.writerows(records)
+          (root/'nested summary.json').write_text(json.dumps({'packs':summary,'license_candidates':licenses,'sample_count':len(thumbs)},indent=2))
+          if thumbs:
+              columns=6; cell_w=178;cell_h=158
+              rows=(len(thumbs)+columns-1)//columns
+              canvas=Image.new('RGB',(columns*cell_w,rows*cell_h),(233,219,190))
+              draw=ImageDraw.Draw(canvas)
+              for i,(pack,name,img) in enumerate(thumbs):
+                  x=(i%columns)*cell_w;y=(i//columns)*cell_h
+                  tile=Image.new('RGBA',(cell_w-14,112),(244,234,206,255))
+                  tile.alpha_composite(img,((tile.width-img.width)//2,(tile.height-img.height)//2))
+                  canvas.paste(tile.convert('RGB'),(x+7,y+4))
+                  draw.text((x+8,y+121),pack[:24],fill=(54,42,32))
+                  draw.text((x+8,y+138),pathlib.PurePosixPath(name).name[:25],fill=(54,42,32))
+              canvas.save(root/'visual samples.jpg',quality=85,optimize=True)
+          print(json.dumps({'packs':summary,'sample_images':len(thumbs)},indent=2))
+          PY
+      - name: Upload audit and samples
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACE Adventures 3 Nested Sprite Analysis
+          path: |
+            audit/nested summary.json
+            audit/inner files.csv
+            audit/visual samples.jpg
+          retention-days: 30
