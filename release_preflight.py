@@ -2,8 +2,8 @@
 from pathlib import Path
 import ast
 ROOT=Path(__file__).resolve().parent
-MODULES=('app','game','story','story_tree','dungeon_master','ai','ai_connections','art','update_addons','addon_updates','asset_registry','animation_director','visual_mapping','sprite_coverage','comfy_art')
-TESTS=('test_game.py','test_story_addons.py','test_dungeon_master.py','test_reliability.py','test_updater_security.py','test_combat_regression.py','test_rollback_safety.py','test_asset_registry.py','test_animation_director.py','test_story_tree.py','test_roulette_spec.py','test_mac_gui.py','test_mac_adventure_acceptance.py','test_idle_performance.py','test_visual_mapping.py','test_dm_visual_contract.py','test_sprite_coverage.py')
+MODULES=('app','game','story','story_tree','dungeon_master','ai','ai_connections','art','update_addons','addon_updates','asset_registry','animation_director','visual_mapping','character_consistency','sprite_coverage','comfy_art')
+TESTS=('test_game.py','test_story_addons.py','test_dungeon_master.py','test_reliability.py','test_updater_security.py','test_combat_regression.py','test_rollback_safety.py','test_asset_registry.py','test_animation_director.py','test_story_tree.py','test_roulette_spec.py','test_mac_gui.py','test_mac_adventure_acceptance.py','test_idle_performance.py','test_visual_mapping.py','test_dm_visual_contract.py','test_sprite_coverage.py','test_character_consistency.py')
 def verify(root=ROOT):
     root=Path(root)
     missing=[str(root/(m+'.py')) for m in MODULES if not (root/(m+'.py')).is_file()]
@@ -18,6 +18,9 @@ def verify(root=ROOT):
     app=(root/'app.py').read_text(encoding='utf-8')
     if 'import game,ai,story,art,ai_connections' not in app:
         raise RuntimeError('Packaged app must use the integrated illustrated engine')
+    import character_consistency
+    issues=character_consistency.validate_definitions()
+    if issues:raise RuntimeError('Character consistency: '+'; '.join(issues))
     return True
 if __name__=='__main__':
     verify()
