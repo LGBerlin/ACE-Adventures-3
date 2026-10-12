@@ -225,6 +225,8 @@ class App(tk.Tk):
     self.label(line,'◇  '+thing,12).pack(side='left')
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
+    elif thing in training_scrolls.SCROLLS:
+     self.button(line,'STUDY',lambda item=thing:self._free('study '+item),True).pack(side='right')
     elif thing in loot_system.ITEMS:
      self.button(line,'EQUIP',lambda item=thing:self._free('equip '+item),True).pack(side='right')
     elif thing in equipment.WEAPONS:
