@@ -24,6 +24,14 @@ class SupportSpellEffects(unittest.TestCase):
   game.action(self.c,"I cast Mana Boost",self.good)
   self.assertGreater(h["mana"],2)
   self.assertLessEqual(h["mana"],h["max_mana"])
+ def test_regular_support_spell_heals_at_level_five(self):
+  h=self.hero
+  game.award_experience(h,700)
+  self.assertGreaterEqual(h["level"],5)
+  h["hp"]=h["max_hp"]-8
+  result=game.action(self.c,"I cast Mending Light",self.good)
+  self.assertIn("HP restored",result["result"])
+  self.assertEqual(h["hp"],h["max_hp"])
  def test_healing_in_battle_allows_retaliation(self):
   h=self.hero;h["hp"]=h["max_hp"]-10
   self.c["enemy"]={"name":"Wolf","hp":15,"ac":12}
