@@ -25,7 +25,7 @@ def evolution(hero, action):
         entries=[]
     for entry in sorted(entries,key=lambda e:e['level'],reverse=True):
         if entry['name'] in hero.get('moves',[]) and entry['level']<=hero.get('level',1) and entry['name'].casefold() in text:
-            return {'name':entry['name'],'tier':3 if entry['level']>=5 else 2 if entry['level']>=3 else 1}
+            return {'name':entry['name'],'tier':4 if entry['level']>=20 else 3 if entry['level']>=12 else 2 if entry['level']>=5 else 1}
     return {'name':None,'tier':1}
 
 def cue_for(hero,result):
