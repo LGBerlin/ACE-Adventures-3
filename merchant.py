@@ -46,6 +46,12 @@ def sell(campaign, item):
         raise ValueError("The merchant will not buy that item.")
     price = SALVAGE_VALUES.get(item) if item in SALVAGE_VALUES else max(1, CATALOG[item]["price"] // 2)
     hero["inventory"].remove(item)
+    if item not in hero["inventory"]:
+        if hero.get("equipped_weapon")==item:hero.pop("equipped_weapon",None)
+        for slot,equipped in list(hero.get("gear_slots",{}).items()):
+            if equipped==item:hero["gear_slots"].pop(slot,None)
+        hero.get("enchantments",{}).pop(item,None)
+        hero.get("enchant_types",{}).pop(item,None)
     hero["gold"] += price
     result = f"{hero['name']} sells {item} for {price} gold."
     campaign["history"].append(result)
