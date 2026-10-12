@@ -132,7 +132,7 @@ def action(c,text,rng=None):
     else:
         future=[]
     for entry in future:
-        if entry['level']>hero['level'] and re.search(r'(?<!\\w)'+re.escape(entry['name'].lower())+r'(?!\\w)',t):
+        if entry['level']>hero['level'] and re.search(r'(?<!\w)'+re.escape(entry['name'].lower())+r'(?!\w)',t):
             raise ValueError('That technique or spell is not unlocked at your level.')
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
