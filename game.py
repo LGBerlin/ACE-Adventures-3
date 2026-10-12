@@ -117,7 +117,7 @@ def enemy_response(c,hero,rng,guard=0):
     ward=hero.get('ward_charges',0)
     if ward:
         hero['ward_charges']=ward-1
-        defense+=3
+        defense+=3+hero.pop('ward_strength',0)
     damage=max(0,rolled-max(0,guard)-defense)
     hero['hp']=max(0,hero['hp']-damage)
     if not any(member['hp']>0 for member in c['characters']):
@@ -262,7 +262,9 @@ def action(c,text,rng=None):
             if known:
                 # Distinguish class actions from a basic weapon swing.
                 # Bonus scales gently with progression and stays deterministic.
-                dmg+=1+hero['level']//6+min(4,sum(' Mastery ' in p for p in hero.get('passives',[]))//2)
+                import ability_progression
+                dmg+=ability_progression.damage_bonus(hero,known)
+                dmg+=min(4,sum(' Mastery ' in p for p in hero.get('passives',[]))//2)
             if known and ability_role in ('damage','control'):
                 bonus,flavour=ability_effects.offensive_effect(c,hero,known)
                 dmg+=bonus
