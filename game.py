@@ -308,6 +308,31 @@ def action(c,text,rng=None):
         combat_log.append(c,actor=hero['name'],kind='action',description=result,hp=hero['hp'])
     return {'roll':roll,'modifier':modifier,'total':total,'dc':dc,'degree':degree,'result':result,'hero':hero['name'],'action':text}
 
+def _valid_optional_gameplay(data):
+    """Validate new gameplay fields while accepting saves from before they existed."""
+    if data.get('guild_job') is not None:
+        job=data['guild_job']
+        if not isinstance(job,dict) or not isinstance(job.get('name'),str):return False
+        import town_services
+        if job['name'] not in town_services.JOBS:return False
+        if not isinstance(job.get('start_turn'),int):return False
+    if not isinstance(data.get('guild_jobs_completed',0),int) or data.get('guild_jobs_completed',0)<0:return False
+    if data.get('party_defeated',False) not in (True,False):return False
+    if data.get('town_memory') is not None:
+        if not isinstance(data['town_memory'],dict):return False
+        if any(not isinstance(v,int) or v<0 or v>100 for v in data['town_memory'].values()):return False
+    for hero in data.get('characters',[]):
+        if not isinstance(hero.get('level',1),int) or not 1<=hero.get('level',1)<=100:return False
+        if not isinstance(hero.get('xp',0),int) or hero.get('xp',0)<0:return False
+        if hero.get('gear_slots') is not None:
+            if not isinstance(hero['gear_slots'],dict):return False
+            import loot_system
+            if any(kind not in ('weapon','armor','trinket') or item not in loot_system.ITEMS for kind,item in hero['gear_slots'].items()):return False
+        if hero.get('enchantments') is not None:
+            if not isinstance(hero['enchantments'],dict):return False
+            if any(not isinstance(level,int) or not 0<=level<=3 for level in hero['enchantments'].values()):return False
+    return True
+
 def _valid_campaign(data):
     """Never admit an arbitrary or partial JSON document as a playable save."""
     if not isinstance(data,dict):return False
@@ -321,7 +346,7 @@ def _valid_campaign(data):
                 and (data['active']==0 if not data['characters'] else 0<=data['active']<len(data['characters']))
                 and all(isinstance(h,dict) and isinstance(h.get('name'),str)
                         and h.get('class') in PATHS and isinstance(h.get('stats'),dict)
-                        for h in data['characters']))
+                        for h in data['characters']) and _valid_optional_gameplay(data))
     except (KeyError,TypeError,ValueError,AttributeError):return False
 
 def save(root,c):
