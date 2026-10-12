@@ -9,7 +9,16 @@ DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGH
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(400,self._poll)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._closing=False;self._poll_job=None;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+ def destroy(self):
+  """Cancel recurring Tk work before tearing down the native interpreter."""
+  self._closing=True
+  job=getattr(self,'_poll_job',None)
+  if job is not None:
+   try:self.after_cancel(job)
+   except tk.TclError:pass
+   self._poll_job=None
+  super().destroy()
  def _load_asset_index(self):
   index=DATA/'approved sprites'/'manifest.json'
   if index.is_file():
@@ -367,6 +376,6 @@ class App(tk.Tk):
      if self.c and self.c['id']==value[0]:
       self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
   except queue.Empty:pass
-  self.after(400,self._poll)
+  if not self._closing and self.winfo_exists():self._poll_job=self.after(400,self._poll)
  def _exit(self):game.save(DATA,self.c);self._home()
 if __name__=='__main__':App().mainloop()
