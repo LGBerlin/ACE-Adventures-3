@@ -68,6 +68,12 @@ class App(tk.Tk):
   control=tk.Label(parent,text=text,font=('Georgia',11,'bold'),bg=bg,fg=fg,
                    relief='raised',bd=2,highlightthickness=1,highlightbackground=BRASS,
                    padx=11,pady=8,cursor='hand2',takefocus=True)
+  normal_bg=bg
+  highlight_bg=visual_theme.COLORS['brass_light'] if light else visual_theme.COLORS['wood_highlight']
+  control.bind('<Enter>',lambda event:control.configure(bg=highlight_bg))
+  control.bind('<Leave>',lambda event:control.configure(bg=normal_bg))
+  control.bind('<FocusIn>',lambda event:control.configure(highlightthickness=3,highlightbackground=visual_theme.COLORS['brass_light']))
+  control.bind('<FocusOut>',lambda event:control.configure(highlightthickness=1,highlightbackground=BRASS))
   control.bind('<ButtonRelease-1>',lambda event:fn() if control.winfo_containing(event.x_root,event.y_root)==control else None)
   control.bind('<Return>',lambda event:fn())
   control.bind('<space>',lambda event:fn())
@@ -267,6 +273,23 @@ class App(tk.Tk):
   cv.pack(anchor='w',fill='x',pady=(2,1))
   visual_theme.meter(cv,current,maximum,width=245,height=12,fill=color)
   return cv
+ def _bind_ledger_scroll(self,viewport,root):
+  """Scroll long sidebars with the wheel or trackpad without scrolling the whole UI."""
+  def move(event):
+   amount=-1 if event.delta>0 else 1 if event.delta<0 else 0
+   if amount:viewport.yview_scroll(amount,'units')
+   return 'break'
+  def linux(direction):
+   def fn(event):
+    viewport.yview_scroll(direction,'units')
+    return 'break'
+   return fn
+  def walk(widget):
+   widget.bind('<MouseWheel>',move,add='+')
+   widget.bind('<Button-4>',linux(-1),add='+')
+   widget.bind('<Button-5>',linux(1),add='+')
+   for child in widget.winfo_children():walk(child)
+  walk(root)
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,width=245,height=182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS);cv.pack(pady=8);self._portrait(cv,h)
@@ -420,6 +443,7 @@ class App(tk.Tk):
     row.pack(fill='x',pady=3)
     self.label(row,str(event)[:220],10,bg=visual_theme.COLORS['parchment_light'],wraplength=245).pack(anchor='w',padx=8,pady=5)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+  self._bind_ledger_scroll(viewport,txt)
  def _minimap(self,parent):
   """Parchment cartography; destination clicks remain rules-gated."""
   state=atlas.state(self.c)
