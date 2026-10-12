@@ -222,7 +222,13 @@ class App(tk.Tk):
      self.button(line,'EQUIP',lambda item=thing:self._equip(item),True).pack(side='right')
    self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
   elif self.panel=='Abilities':
-   for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
+   self.label(txt,'AVAILABLE ACTIONS',12).pack(anchor='w',pady=4)
+   for thing in h['moves']:
+    ability_row=tk.Frame(txt,bg=PARCH);ability_row.pack(fill='x',pady=2)
+    self.label(ability_row,'◆  '+thing,11).pack(side='left')
+    self.button(ability_row,'USE',lambda move=thing:self._free('I use '+move),True).pack(side='right')
+   for passive in h['passives']:
+    self.label(txt,'◇  '+passive+' (passive)',10).pack(anchor='w',pady=2)
    if h['class']=='Mage' and h.get('magic') in spell_catalog.MAGIC_TYPES:
     unlocked=set(spell_catalog.unlocked(h['magic'],h['level']))
     for entry in spell_catalog.catalog(h['magic']):
