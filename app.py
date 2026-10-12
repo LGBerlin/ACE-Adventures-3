@@ -269,6 +269,12 @@ class App(tk.Tk):
      self.label(line,item,10).pack(side='left')
      self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
   elif self.panel=='Town':
+   quests=town_services.active_quests(self.c)
+   self.label(txt,'ACTIVE QUESTS '+str(len(quests))+'/2',13).pack(anchor='w',pady=4)
+   for quest in quests:self.label(txt,'◇ '+quest['name'],10).pack(anchor='w',pady=2)
+   if self.c.get('last_enchant_spin'):
+    spin=self.c['last_enchant_spin']
+    self.label(txt,'LAST ENCHANT WHEEL: '+spin['outcome']+' +'+str(spin['level']),10).pack(anchor='w',pady=4)
    self.label(txt,'LOCAL PEOPLE',13).pack(anchor='w',pady=4)
    present=[name for name,info in town_services.PEOPLE.items() if info['place']==self.c['location']]
    for name in present:
@@ -365,9 +371,27 @@ class App(tk.Tk):
     story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
    if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
    self._adventure()
+   if result.get('choice')=='enchant':self._enchant_wheel()
    if result['roll_required']:self._roll_display(result)
    self._narrate(result['result'])
   except ValueError as e:messagebox.showwarning('Action',str(e))
+ def _enchant_wheel(self):
+  spin=self.c.get('last_enchant_spin')
+  if not spin:return
+  win=tk.Toplevel(self);win.title('Enchantment Wheel');win.geometry('450x380');win.configure(bg=WOOD)
+  outer,inner=self.card(win,'Wheel of Enchantments');outer.pack(fill='both',expand=True,padx=12,pady=12)
+  cv=tk.Canvas(inner,width=330,height=250,bg=PARCH,highlightthickness=0);cv.pack()
+  import math
+  kinds=loot_system.ENCHANT_TYPES
+  cx,cy=165,115
+  for i,name in enumerate(kinds):
+   angle=(i*2*math.pi/len(kinds))-math.pi/2
+   x,y=cx+85*math.cos(angle),cy+85*math.sin(angle)
+   cv.create_text(x,y,text=name,fill='#9a571a' if i==spin['slot'] else INK,font=('Georgia',11,'bold' if i==spin['slot'] else 'normal'))
+  cv.create_oval(cx-25,cy-25,cx+25,cy+25,fill=BRASS,outline=WOOD,width=3)
+  cv.create_text(cx,cy,text=str(spin['level']),font=('Georgia',20,'bold'),fill=INK)
+  self.label(inner,spin['item']+' · '+spin['outcome']+' enchantment',14,wraplength=370).pack(pady=5)
+  self.button(inner,'CONTINUE',win.destroy,True).pack(pady=8)
  def _roll_display(self,result):
   win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
   outer,f=self.card(win,'The Twenty-Sided Die');outer.pack(fill='both',expand=True,padx=16,pady=14)
