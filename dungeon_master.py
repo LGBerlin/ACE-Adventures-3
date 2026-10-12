@@ -92,7 +92,11 @@ def prompt_context(c,result):
     """Bounded context for the narrator; immutable facts come first."""
     import copy
     w=ensure_world(copy.deepcopy(c))
+    import town_services
     return {'campaign':c.get('title'), 'chapter':w['chapter'], 'location':c.get('location'),
+            'active_quests':town_services.active_quests(c),
+            'last_enchantment':c.get('last_enchant_spin'),
+            'last_loot':c.get('loot_history',[])[-3:],
             'quest':c.get('quest',{}), 'party':[
               {'name':h['name'],'class':h['class'],'path':h['path'],'hp':h['hp'],'mana':h['mana']}
               for h in c.get('characters',[])],
