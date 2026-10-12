@@ -1,6 +1,12 @@
 name: Build ACE Adventures 3 Mac App
 on:
   workflow_dispatch:
+    inputs:
+      release_tier:
+        description: 'Preview for packaging tests; stable requires approved artwork'
+        type: choice
+        options: [preview, stable]
+        default: preview
   push:
     branches: [main]
   pull_request:
@@ -24,8 +30,12 @@ jobs:
         run: |
           python -m compileall -q .
           python -m unittest discover -v
-      - name: Verify approved visual library coverage and provenance
+      - name: Verify approved visual library coverage and provenance (stable only)
+        if: github.event_name == 'workflow_dispatch' && inputs.release_tier == 'stable'
         run: python verify_release_assets.py 'assets/approved sprites'
+      - name: Mark non-release build
+        if: github.event_name != 'workflow_dispatch' || inputs.release_tier != 'stable'
+        run: echo 'DEVELOPMENT PREVIEW ONLY — approved sprite asset pack and stable acceptance are not yet complete.'
       - name: Build native Mac app
         run: |
           python -m PyInstaller --noconfirm --clean --windowed --onedir \
@@ -74,7 +84,7 @@ jobs:
           shasum -a 256 'ACE Adventures 3 Mac App.zip' > 'ACE Adventures 3 Mac App.sha256'
       - uses: actions/upload-artifact@v4
         with:
-          name: ACE Adventures 3 Mac App
+          name: ACE Adventures 3 Mac ${{ github.event_name == 'workflow_dispatch' && inputs.release_tier == 'stable' && 'Stable Candidate' || 'Development Preview' }}
           path: |
             ACE Adventures 3 Mac App.zip
             ACE Adventures 3 Mac App.sha256
