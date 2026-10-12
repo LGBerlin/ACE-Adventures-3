@@ -5,8 +5,9 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
+import visual_theme
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
-DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
+DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
@@ -38,8 +39,8 @@ class App(tk.Tk):
   return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
  def button(self,parent,text,fn,light=False):
   """Paint consistent high-contrast controls; macOS native buttons ignore bg."""
-  bg='#f3e0b9' if light else '#553824'
-  fg='#31251b' if light else '#fff1cf'
+  bg=visual_theme.COLORS['parchment_light'] if light else visual_theme.COLORS['wood_dark']
+  fg=INK if light else LIGHT
   control=tk.Label(parent,text=text,font=('Georgia',11,'bold'),bg=bg,fg=fg,
                    relief='raised',bd=2,highlightthickness=1,highlightbackground=BRASS,
                    padx=11,pady=8,cursor='hand2',takefocus=True)
@@ -48,14 +49,14 @@ class App(tk.Tk):
   control.bind('<space>',lambda event:fn())
   return control
  def page(self,title):
-  self.clear();bar=tk.Frame(self,bg='#33261e',height=72);bar.pack(fill='x')
-  self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,'#33261e').pack(side='left',padx=20,pady=12)
-  self.label(bar,'❦  '+title.upper(),11,BRASS,'#33261e').pack(side='left',padx=14)
+  self.clear();bar=tk.Frame(self,bg=visual_theme.COLORS['wood_dark'],height=72);bar.pack(fill='x')
+  self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,visual_theme.COLORS['wood_dark']).pack(side='left',padx=20,pady=12)
+  self.label(bar,'❦  '+title.upper(),11,BRASS,visual_theme.COLORS['wood_dark']).pack(side='left',padx=14)
   self.button(bar,'THE CHRONICLES',self._home).pack(side='right',padx=12)
   self.button(bar,'AI CONNECTIONS',self._connections).pack(side='right',padx=5)
   self.button(bar,'CHECK UPDATES',self._check_content_updates).pack(side='right',padx=5)
  def card(self,parent,title=''):
-  outer=tk.Frame(parent,bg=WOOD,bd=4,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=2);inner.pack(fill='both',expand=True,padx=4,pady=4)
+  outer=tk.Frame(parent,bg=WOOD,bd=3,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=2);inner.pack(fill='both',expand=True,padx=5,pady=5)
   if title:
    self.label(inner,'❧   '+title.upper()+'   ❧',14,fg='#78512f').pack(anchor='w',padx=16,pady=(14,7))
    tk.Frame(inner,bg=BRASS,height=2).pack(fill='x',padx=16,pady=(0,5))
@@ -207,16 +208,24 @@ class App(tk.Tk):
   entry.bind('<Return>',lambda event:submit())
   self.button(row,'SEND ACTION',submit,True).pack(side='right',padx=4)
   entry.focus_set()
+ def _resource_bar(self,parent,label,current,maximum,color):
+  frame=tk.Frame(parent,bg=PARCH);frame.pack(fill='x',padx=15,pady=(2,3))
+  self.label(frame,f'{label}  {current}/{maximum}',10).pack(anchor='w')
+  cv=tk.Canvas(frame,width=245,height=14,bg=PARCH,highlightthickness=0)
+  cv.pack(anchor='w',fill='x',pady=(2,1))
+  visual_theme.meter(cv,current,maximum,width=245,height=12,fill=color)
+  return cv
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
+  cv=tk.Canvas(f,width=245,height=182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS);cv.pack(pady=8);self._portrait(cv,h)
   self.label(f,h['name'],20).pack(padx=14)
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
-  self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
+  self._resource_bar(f,'HEALTH',h['hp'],h['max_hp'],visual_theme.COLORS['forest'])
+  self._resource_bar(f,'MANA',h['mana'],h['max_mana'],visual_theme.COLORS['mana'])
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree','Shop','Map','Dice Board','Town']):
+  for i,name in enumerate(visual_theme.NAVIGATION):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
-   self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
+   self.button(row,('◆ ' if self.panel==panel else '')+name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
   row.grid_columnconfigure(1,weight=1)
   txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
