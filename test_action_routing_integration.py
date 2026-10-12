@@ -42,8 +42,8 @@ class ActionRoutingIntegrationTests(unittest.TestCase):
         hero["gold"]=30
         # An action while threatened goes through combat resolution rather than
         # silently granting items or relocating the adventurer.
-        result=interaction.perform(self.c,"buy a Health Potion",random.Random(1))
-        self.assertTrue(result["roll_required"])
+        with self.assertRaises(ValueError):
+            interaction.perform(self.c,"buy a Health Potion",random.Random(1))
         self.assertEqual(hero["gold"],30)
         self.assertNotIn("Health Potion",hero["inventory"])
         self.assertEqual(self.c["location"],"market")
