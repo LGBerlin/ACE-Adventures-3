@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping
+import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -154,6 +154,12 @@ class App(tk.Tk):
    self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
   elif self.panel=='Abilities':
    for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
+   if h['class']=='Mage' and h.get('magic') in spell_catalog.MAGIC_TYPES:
+    unlocked=set(spell_catalog.unlocked(h['magic'],h['level']))
+    for entry in spell_catalog.catalog(h['magic']):
+     if entry['level']>1:
+      label=('✦  ' if entry['name'] in unlocked else '◇  ')+entry['name']+'  ·  Level '+str(entry['level'])
+      self.label(txt,label,11).pack(anchor='w',pady=2)
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
  def _consume(self,item):
@@ -186,7 +192,14 @@ class App(tk.Tk):
  def _roll_display(self,result):
   win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
   outer,f=self.card(win,'The Twenty-Sided Die');outer.pack(fill='both',expand=True,padx=16,pady=14)
-  self.label(f,str(result['roll']),68).pack(pady=8)
+  tray=tk.Canvas(f,width=285,height=145,bg='#5e4330',highlightthickness=3,highlightbackground=BRASS)
+  tray.pack(pady=11)
+  tray.create_rectangle(13,12,273,135,fill='#704c32',outline='#bd965d',width=5)
+  tray.create_rectangle(26,24,260,122,fill='#3b6049',outline='#2a382f',width=3)
+  tray.create_polygon(143,29,209,76,183,118,102,118,77,76,fill='#b99450',outline='#e9d09d',width=3)
+  tray.create_polygon(143,29,143,76,77,76,fill='#d6b477',outline='#f5e0ad',width=2)
+  tray.create_polygon(143,76,183,118,102,118,fill='#8e6435',outline='#edcd92',width=2)
+  tray.create_text(143,80,text=str(result['roll']),fill='#fff2d5',font=('Georgia',32,'bold'))
   self.label(f,result['degree'],20).pack(pady=4)
   self.label(f,f'{result["roll"]} {result["modifier"]:+d} = {result["total"]}   ·   DC {result["dc"]}',13).pack(pady=5)
   self.button(f,'CONTINUE',win.destroy).pack(pady=10)
