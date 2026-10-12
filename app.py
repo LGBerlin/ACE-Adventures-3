@@ -264,9 +264,12 @@ class App(tk.Tk):
    for slot in ('armor','trinket'):
     self.label(txt,slot.title()+' · '+h.get('gear_slots',{}).get(slot,'None'),11,wraplength=260).pack(anchor='w',pady=2)
   elif self.panel=='Pack':
+   self.label(txt,'ADVENTURER’S PACK',13).pack(anchor='w',pady=(0,5))
+   self.label(txt,'Gold · '+str(h['gold']),12).pack(anchor='w',pady=(0,8))
    for thing in h['inventory']:
     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
-    self.label(line,'◇  '+thing,12).pack(side='left')
+    status=' · EQUIPPED' if thing==equipment.equipped(h) or thing in h.get('gear_slots',{}).values() else ''
+    self.label(line,'◇  '+thing+status,10,wraplength=175).pack(side='left')
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
     elif thing in training_scrolls.SCROLLS:
@@ -277,7 +280,7 @@ class App(tk.Tk):
      suffix=' (equipped)' if equipment.equipped(h)==thing else ''
      if suffix:self.label(line,suffix,10).pack(side='left')
      self.button(line,'EQUIP',lambda item=thing:self._equip(item),True).pack(side='right')
-   self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
+   self.label(txt,'Items · '+str(len(h['inventory'])),11).pack(anchor='w',pady=9)
   elif self.panel=='Abilities':
    self.label(txt,'AVAILABLE ACTIONS',12).pack(anchor='w',pady=4)
    for thing in h['moves']:
@@ -302,9 +305,14 @@ class App(tk.Tk):
     self.label(txt,"Visit Yarrow's Apothecary to trade. No trading during combat.",12,wraplength=260).pack(anchor='w',pady=8)
    else:
     self.label(txt,f"PURSE · {h['gold']} gold",14).pack(anchor='w',pady=6)
+    last_category=None
     for item,detail in merchant.CATALOG.items():
+     category=loot_system.ITEMS[item]['kind'].upper() if item in loot_system.ITEMS else 'SUPPLIES & SCROLLS'
+     if category!=last_category:
+      self.label(txt,category,12).pack(anchor='w',pady=(9,4))
+      last_category=category
      line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=3)
-     self.label(line,f"{item} · {detail['price']}g",10).pack(side='left')
+     self.label(line,f"{item} · {detail['price']}g",10,wraplength=175).pack(side='left')
      self.button(line,'BUY',lambda item=item:self._trade('buy',item),True).pack(side='right')
     self.label(txt,'SELL FROM PACK',12).pack(anchor='w',pady=6)
     for item in sorted(set(h['inventory'])):
