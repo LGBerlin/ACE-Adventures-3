@@ -55,9 +55,11 @@ def perform(c,text,rng=None):
     consume=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(?:use|drink|consume)\s+(?:a |an |the |my )?(.+?)[.!]?',lower)
     if consume:
         item=next((item for item in ('Healing Draught','Health Potion') if item.casefold()==consume.group(1).strip()),None)
-        if not item:raise ValueError('That is not a usable consumable.')
-        msg=game.use_item(c,item,rng=rng)
-        return {'roll_required':False,'result':msg,'action':text,'choice':'use_item'}
+        if item:
+            msg=game.use_item(c,item,rng=rng)
+            return {'roll_required':False,'result':msg,'action':text,'choice':'use_item'}
+        if re.match(r'^(?:i\\s+)?(?:drink|consume)\\b',lower):
+            raise ValueError('That is not a usable consumable.')
     crafting=re.fullmatch(r'(?:i\s+)?enchant\s+(.+?)[.!]?',lower)
     if crafting:
         item=next((name for name in loot_system.ITEMS if name.casefold()==crafting.group(1).strip()),None)
