@@ -80,6 +80,8 @@ def encounter(c,rng=None):
     if c['enemy']:return
     c['enemy']={'name':rng.choice(['Moss Goblin','Thorn Wolf','Forest Wisp']),'hp':15,'max_hp':15,'ac':12,'pos':[5,2]}
     c['history'].append('An enemy blocks the forest road. Battle begins!')
+    import combat_log
+    combat_log.append(c,actor=c['enemy']['name'],kind='encounter',description='A hostile creature appears.',hp=c['enemy']['hp'])
 
 def use_item(c,item,hero_index=None,rng=None):
     """Use inventory items with authoritative, persisted effects.
@@ -108,6 +110,9 @@ def use_item(c,item,hero_index=None,rng=None):
         message+=f" Enemy retaliates for {retaliation} HP."
     c['history'].append(message)
     c['turn']+=1
+    if c.get('enemy'):
+        import combat_log
+        combat_log.append(c,actor=hero['name'],kind='item',description=message,hp=hero['hp'])
     return message
 
 def action(c,text,rng=None):
