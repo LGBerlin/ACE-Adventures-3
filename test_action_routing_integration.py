@@ -33,7 +33,7 @@ class ActionRoutingIntegrationTests(unittest.TestCase):
             interaction.perform(self.c,"buy a Health Potion")
         self.assertEqual(hero["gold"],before)
         with self.assertRaises(ValueError):
-            interaction.perform(self.c,"sell Iron Sword")
+            interaction.perform(self.c,"sell Ashwood Staff")
         self.assertEqual(hero["gold"],before)
     def test_enemy_blocks_shopping_and_travel(self):
         self.c["location"]="market"
