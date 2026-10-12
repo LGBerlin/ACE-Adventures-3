@@ -88,6 +88,32 @@ class JourneyAndUpdaterIntegration(unittest.TestCase):
   self.assertFalse(c['guild_job']['spoke_to_target'])
   town_services.talk(c,'Tomas')
   self.assertTrue(c['guild_job']['spoke_to_target'])
+ def test_quest_and_enchanted_gear_survive_content_rollback(self):
+  import loot_system
+  with tempfile.TemporaryDirectory() as folder:
+   root=Path(folder)
+   c=self.make()
+   h=c['characters'][0]
+   h['inventory'].append('Chainmail')
+   h['gold']=100
+   c['location']='market'
+   loot_system.equip(c,'Chainmail')
+   c['location']='square'
+   town_services.accept(c,'Herbalist Consultation')
+   story.select(c,'market')
+   town_services.talk(c,'Yarrow')
+   loot_system.enchant(c,'Chainmail')
+   game.save(root,c)
+   saved_before=(dict(c['guild_job']),dict(h['gear_slots']),dict(h['enchant_types']),list(h['inventory']))
+   payload=b'{"locations":{"market":"Another description"}}'
+   url=addon_updates.ORIGIN+'/updates/1.1.0/stories/hollow-bell.json'
+   manifest={'version':'1.1.0','files':[{'path':'stories/hollow-bell.json','url':url,'sha256':hashlib.sha256(payload).hexdigest()}]}
+   response={addon_updates.MANIFEST:json.dumps(manifest).encode(),url:payload}
+   self.assertEqual(addon_updates.check_and_install(root,lambda key:response[key])[0],'updated')
+   update_addons.rollback(root)
+   loaded=game.load_all(root)[0]
+   actual=loaded['characters'][0]
+   self.assertEqual((loaded['guild_job'],actual['gear_slots'],actual['enchant_types'],actual['inventory']),saved_before)
  def test_content_update_rollback_preserves_campaign_bytes(self):
   with tempfile.TemporaryDirectory() as directory:
    root=Path(directory)
