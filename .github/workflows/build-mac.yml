@@ -16,15 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check complete source
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          required = ('app.py','game.py','story.py','dungeon_master.py','ai.py','ai_connections.py','update_addons.py','art.py')
-          missing = [p for p in required if not Path(p).is_file()]
-          if missing:
-              raise SystemExit('Source not yet migrated: ' + ', '.join(missing))
-          PY
+      - name: Verify complete illustrated application
+        run: python release_preflight.py
       - name: Install packager
         run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0 certifi
       - name: Test and compile
