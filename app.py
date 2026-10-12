@@ -26,12 +26,15 @@ class App(tk.Tk):
    try:
     from PIL import Image,ImageTk
     with Image.open(BytesIO(source)) as img:
-     img.thumbnail((168,168))
+     img=img.convert('RGBA')
+     img.thumbnail((190,162))
      photo=ImageTk.PhotoImage(img.copy(),master=canvas)
-    canvas.create_image(122,90,image=photo)
+    canvas.create_image(122,90,image=photo,anchor='center')
+    canvas.create_rectangle(8,8,237,173,outline=BRASS,width=2)
     canvas.image=photo
     return
    except (ImportError,OSError,ValueError,tk.TclError):pass
+  canvas.create_rectangle(8,8,237,173,outline=BRASS,width=2)
   art.character(canvas,78,28,hero['class'],hero['sprite_seed'],4)
  def clear(self):
   for widget in self.winfo_children():widget.destroy()
@@ -369,7 +372,24 @@ class App(tk.Tk):
     line.pack(fill='x',pady=3)
     self.label(line,'D20  '+str(record['roll'])+'  '+f"{record['modifier']:+d}"+'  = '+str(record['total']),12,bg=visual_theme.COLORS['parchment_light']).pack(anchor='w',padx=8,pady=(5,0))
     self.label(line,'DC '+str(record['dc'])+'  ·  '+str(record.get('degree','')),10,bg=visual_theme.COLORS['parchment_light'],wraplength=245).pack(anchor='w',padx=8,pady=(0,5))
-  elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
+  elif self.panel=='Story Tree':
+   self.label(txt,'THE HOLLOW BELL · CHRONICLE',13).pack(anchor='w',pady=(2,8))
+   for i,step in enumerate(story_tree.timeline(self.c)):
+    row=tk.Frame(txt,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
+    row.pack(fill='x',pady=3)
+    marker='✓' if step['status']=='completed' else '◉' if step['status']=='current' else '◇'
+    color=visual_theme.COLORS['forest'] if step['status']=='completed' else INK if step['status']=='current' else visual_theme.COLORS['muted_ink']
+    self.label(row,marker+'  '+step['title'],10,fg=color,bg=visual_theme.COLORS['parchment_light'],wraplength=220).pack(anchor='w',padx=8,pady=7)
+    if i<len(story_tree.STEPS)-1:
+     self.label(txt,'    │',10,fg=BRASS).pack(anchor='w')
+  elif self.panel=='Journal':
+   self.label(txt,'CHRONICLE · QUEST JOURNAL',13).pack(anchor='w',pady=(2,7))
+   self.label(txt,story.journal(self.c),12,wraplength=250).pack(anchor='w',pady=3)
+   self.label(txt,'RECENT EVENTS',12).pack(anchor='w',pady=(13,6))
+   for event in reversed(self.c.get('history',[])[-16:]):
+    row=tk.Frame(txt,bg=visual_theme.COLORS['parchment_light'],highlightbackground=visual_theme.COLORS['parchment_shadow'],highlightthickness=1)
+    row.pack(fill='x',pady=3)
+    self.label(row,str(event)[:220],10,bg=visual_theme.COLORS['parchment_light'],wraplength=245).pack(anchor='w',padx=8,pady=5)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
  def _minimap(self,parent):
   """Parchment cartography; destination clicks remain rules-gated."""
