@@ -290,6 +290,9 @@ class App(tk.Tk):
    widget.bind('<Button-5>',linux(1),add='+')
    for child in widget.winfo_children():walk(child)
   walk(root)
+  viewport.bind('<MouseWheel>',move,add='+')
+  viewport.bind('<Button-4>',linux(-1),add='+')
+  viewport.bind('<Button-5>',linux(1),add='+')
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,width=245,height=182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS);cv.pack(pady=8);self._portrait(cv,h)
