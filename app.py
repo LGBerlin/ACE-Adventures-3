@@ -373,23 +373,40 @@ class App(tk.Tk):
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
  def _minimap(self,parent):
-  """Interactive map mirrors quest routes; clicking is rules-gated."""
+  """Parchment cartography; destination clicks remain rules-gated."""
   state=atlas.state(self.c)
-  canvas=tk.Canvas(parent,width=270,height=225,bg='#e8d5aa',highlightbackground=BRASS,highlightthickness=2)
+  canvas=tk.Canvas(parent,width=274,height=255,bg=visual_theme.COLORS['parchment_light'],
+                   highlightbackground=BRASS,highlightthickness=2)
   canvas.pack(pady=9)
-  by_id={node['id']:node for node in state['nodes']}
-  for start,end in state['roads']:
-   a,b=by_id[start],by_id[end]
-   canvas.create_line(a['x']*2.4,a['y']*2.0+10,b['x']*2.4,b['y']*2.0+10,fill='#987b56',width=3,dash=(5,3))
+  canvas.create_rectangle(8,8,262,245,outline=BRASS,width=2)
+  canvas.create_text(137,20,text='BRIARHOLLOW & ASHWOOD',font=('Georgia',10,'bold'),fill=INK)
+  canvas.create_line(236,39,236,67,fill=visual_theme.COLORS['wood'],width=2)
+  canvas.create_polygon(236,34,229,45,243,45,fill=visual_theme.COLORS['wood'])
+  canvas.create_text(236,75,text='N',font=('Georgia',9,'bold'),fill=INK)
+  coords={'square':(131,172),'tavern':(61,124),'market':(214,125),
+          'well':(128,95),'forest':(158,51)}
+  nodes={node['id']:node for node in state['nodes']}
+  for a,b in state['roads']:
+   xa,ya=coords[a];xb,yb=coords[b]
+   canvas.create_line(xa,ya,xb,yb,fill='#b3996b',width=5)
+   canvas.create_line(xa,ya,xb,yb,fill='#f4e5c4',width=2,dash=(5,4))
   for node in state['nodes']:
-   x,y=node['x']*2.4,node['y']*2.0+10
-   color='#486742' if node['current'] else '#8f653b' if node['reachable'] else '#aea18b'
-   tag='place_'+node['id']
-   canvas.create_oval(x-8,y-8,x+8,y+8,fill=color,outline=INK,tags=(tag,))
-   canvas.create_text(x,y+16,text=node['label'],font=('Georgia',8),fill=INK,tags=(tag,))
+   key=node['id'];x,y=coords[key]
+   color=(visual_theme.COLORS['forest'] if node['current']
+          else visual_theme.COLORS['wood'] if node['reachable']
+          else '#a8a096')
+   tag='place_'+key
+   radius=10 if node['current'] else 8
+   canvas.create_oval(x-radius,y-radius,x+radius,y+radius,fill=color,
+                      outline=BRASS,width=2,tags=(tag,))
+   canvas.create_text(x,y-20 if key=='forest' else y+20,
+                      text={'square':'VILLAGE SQUARE','tavern':'TAVERN','market':'APOTHECARY',
+                            'well':'OLD WELL','forest':'ASHWOOD'}[key],
+                      font=('Georgia',8,'bold'),fill=INK,tags=(tag,))
    if node['reachable']:
-    canvas.tag_bind(tag,'<ButtonRelease-1>',lambda event,dest=node['id']:self._map_travel(dest))
-  self.label(parent,'Green: party location · Brown: available road',10,wraplength=260).pack(anchor='w')
+    canvas.tag_bind(tag,'<ButtonRelease-1>',lambda event,dest=key:self._map_travel(dest))
+  self.label(parent,'Green: current place · Brown: available road',10,wraplength=260).pack(anchor='w')
+  self.label(parent,'Select a marked destination to travel.',10,wraplength=260).pack(anchor='w',pady=(3,0))
  def _map_travel(self,destination):
   try:
    result=atlas.travel(self.c,destination)
