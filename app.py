@@ -288,8 +288,8 @@ class App(tk.Tk):
     self.label(line,name,10).pack(side='left')
     self.button(line,'TALK',lambda who=name:self._free('talk to '+who),True).pack(side='right')
    if self.c['location']=='square':
-    self.label(txt,'ADVENTURERS GUILD',12).pack(anchor='w',pady=7)
-    for name in town_services.JOBS:
+    self.label(txt,'ADVENTURERS GUILD · '+town_services.guild_rank(self.c),12).pack(anchor='w',pady=7)
+    for name in town_services.available_jobs(self.c):
      self.button(txt,name,lambda job=name:self._free('accept guild job '+job),True).pack(fill='x',pady=2)
    if self.c.get('guild_job'):
     self.button(txt,'ABANDON GUILD JOB',lambda:self._free('abandon guild job'),True).pack(fill='x',pady=3)
