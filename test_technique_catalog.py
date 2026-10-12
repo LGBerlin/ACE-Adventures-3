@@ -8,7 +8,7 @@ class PathTechniqueTests(unittest.TestCase):
    for seed in range(50):
     h=game.character('A',22,cls,random.Random(seed))
     starting=list(h['moves'])
-    game.award_experience(h,1400)
+    game.award_experience(h,2000)
     self.assertEqual(h['level'],6)
     self.assertEqual(h['moves'],starting+technique_catalog.unlocked(h['path'],6))
     self.assertEqual(game.MOVES[h['path']],starting)
