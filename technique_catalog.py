@@ -11,7 +11,7 @@ TECHNIQUES={
 'Oracle Vessel':('Foretold Step','Fate Reversal')}
 def catalog(path):
  if path not in TECHNIQUES:raise ValueError('Unknown technique path')
- return [{'name':name,'level':lv,'path':path} for name,lv in zip(TECHNIQUES[path],(3,5))]
+ return [{'name':TECHNIQUES[path][0]+' Training','level':5,'path':path}]+[{'name':name,'level':lv,'path':path} for name,lv in zip(TECHNIQUES[path],(12,20))]
 def unlocked(path,level):
  return [x['name'] for x in catalog(path) if level>=x['level']]
 def validate():
