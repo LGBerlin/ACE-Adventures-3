@@ -47,6 +47,8 @@ def perform(c,text,rng=None):
     # Combat always takes precedence. No travel, merchant or free social
     # interaction can silently bypass an active enemy turn.
     if c.get('enemy'):
+        if re.match(r'^(?:i\s+)?(?:buy|purchase|sell|go|travel|walk|head|visit|return)\b',lower):
+            raise ValueError('You must resolve the encounter before trading or travelling.')
         result=game.action(c,text,rng)
         result['roll_required']=True
         dice_ledger.record(c,result,text)
