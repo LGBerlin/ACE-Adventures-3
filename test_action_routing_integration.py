@@ -47,6 +47,19 @@ class ActionRoutingIntegrationTests(unittest.TestCase):
         self.assertEqual(hero["gold"],30)
         self.assertNotIn("Health Potion",hero["inventory"])
         self.assertEqual(self.c["location"],"market")
+    def test_drink_consumable_heals_without_roll(self):
+        hero=self.c["characters"][0]
+        hero["inventory"].append("Healing Draught")
+        hero["hp"]=hero["max_hp"]-6
+        result=interaction.perform(self.c,"drink Healing Draught")
+        self.assertFalse(result["roll_required"])
+        self.assertEqual(hero["hp"],hero["max_hp"])
+        self.assertNotIn("Healing Draught",hero["inventory"])
+    def test_unowned_potion_cannot_be_conjured(self):
+        hero=self.c["characters"][0]
+        hero["hp"]-=4
+        with self.assertRaises(ValueError):
+            interaction.perform(self.c,"drink Healing Draught")
     def test_remote_npc_conversation_does_not_roll(self):
         with self.assertRaises(ValueError):
             interaction.perform(self.c,"I want to ask Mira about the bell")
