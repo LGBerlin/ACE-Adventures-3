@@ -70,12 +70,21 @@ def validate_intent(candidate,text):
     if kind not in CATEGORIES:return fallback_interpret(text)
     return {'kind':kind,'target':str(candidate.get('target',''))[:90], 'method':text[:350]}
 
-def interpret(text,model=MODEL,timeout=16,request=None):
+def interpret(text,model=MODEL,timeout=16,request=None,context=None):
     """Interpret natural language as an intention, not a game-state mutation."""
     offline=fallback_interpret(text)
     system=('Classify an RPG player action into one of: '+', '.join(CATEGORIES)+'. '
             'Return ONLY JSON {"kind":"...","target":"..."}. No other keys. '
             'Do not invent outcomes, rolls, items, quest completion or NPC dialogue.')
+    if isinstance(context,dict):
+        # The model sees the scene and known abilities but cannot edit state.
+        brief={'location':context.get('location'),
+               'in_combat':bool(context.get('enemy')),
+               'party':[{'name':h.get('name'),'class':h.get('class'),'path':h.get('path'),
+                         'moves':h.get('moves',[])[:20]} for h in context.get('characters',[])[:8]],
+               'allowed_travel':[choice for _,choice in __import__('story').options(context)
+                                 if choice in __import__('story').PLACES]}
+        system+=' Current scene: '+json.dumps(brief,ensure_ascii=False)[:1800]
     body={'model':model,'stream':False,'format':'json','think':False,'messages':[
       {'role':'system','content':system},{'role':'user','content':text[:500]}],
       'options':{'temperature':0,'num_predict':100}}
