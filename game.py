@@ -158,7 +158,13 @@ def action(c,text,rng=None):
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
         if c['enemy']['hp']==0:
-            outcome.append('Enemy defeated, +10 XP, +8 gold.');new_spells=award_experience(hero,10);hero['gold']+=8;c['enemy']=None
+            outcome.append('Enemy defeated, +10 XP to the victor, +5 XP to each surviving ally, +8 gold.')
+            new_spells=award_experience(hero,10)
+            for ally in c['characters']:
+                if ally is not hero and ally['hp']>0:
+                    award_experience(ally,5)
+            hero['gold']+=8
+            c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
             dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
