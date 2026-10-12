@@ -200,15 +200,15 @@ def action(c,text,rng=None):
             if known:
                 # Distinguish class actions from a basic weapon swing.
                 # Bonus scales gently with progression and stays deterministic.
-                dmg+=1+hero['level']//3
+                dmg+=1+hero['level']//6
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
         if c['enemy']['hp']==0:
             outcome.append('Enemy defeated, +10 XP to the victor, +5 XP to each surviving ally, +8 gold.')
-            new_spells=award_experience(hero,10)
+            new_spells=award_experience(hero,10+max(0,(hero['stats'].get('INT',10)-10)//3))
             for ally in c['characters']:
                 if ally is not hero and ally['hp']>0:
-                    award_experience(ally,5)
+                    award_experience(ally,5+max(0,(ally['stats'].get('INT',10)-10)//4))
             hero['gold']+=8
             c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
