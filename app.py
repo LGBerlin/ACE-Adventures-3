@@ -5,7 +5,7 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects
+import visual_theme,battle_effects,tabletop_layout
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
@@ -175,9 +175,10 @@ class App(tk.Tk):
    for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['class']+' · '+hero['path'],16).pack(padx=18,pady=10)
    self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25)
    return
+  layout=tabletop_layout.for_window(self.winfo_width(),self.winfo_height(),len(self.c['characters']))
   body=tk.Frame(self,bg=DARK)
   body.pack(fill='both',expand=True,padx=14,pady=10)
-  right=tk.Frame(body,bg=DARK,width=330)
+  right=tk.Frame(body,bg=DARK,width=layout.sidebar)
   right.pack(side='right',fill='y',padx=(9,0))
   right.pack_propagate(False)
   self._sidebar(right)
@@ -187,19 +188,21 @@ class App(tk.Tk):
   party.pack(fill='x',pady=(0,7))
   members=tk.Frame(party_inside,bg=PARCH)
   members.pack(fill='x',padx=12,pady=7)
+  for column in range(layout.party_columns):members.grid_columnconfigure(column,weight=1)
   for i,h in enumerate(self.c['characters']):
    selected=i==self.c['active']
    hero_frame=tk.Frame(members,bg=visual_theme.COLORS['parchment_light'] if selected else PARCH,
                        highlightbackground=BRASS if selected else visual_theme.COLORS['parchment_shadow'],
                        highlightthickness=2 if selected else 1)
-   hero_frame.pack(side='left',fill='x',expand=True,padx=4,pady=2)
+   hero_frame.grid(row=i//layout.party_columns,column=i%layout.party_columns,sticky='ew',padx=4,pady=2)
    title=('◆ ' if selected else '◇ ')+h['name']+' · Lv '+str(h['level'])
    self.button(hero_frame,title,lambda i=i:self._switch(i),True).pack(fill='x',padx=3,pady=(3,0))
    self.label(hero_frame,game.display_archetype(h),10,bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=2)
    self.label(hero_frame,'HP '+str(h['hp'])+'/'+str(h['max_hp'])+'  ·  MP '+str(h['mana'])+'/'+str(h['max_mana']),10,bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=(0,4))
   outer,f=self.card(left,story.PLACES[self.c['location']][0])
   outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,height=225,bg=DARK,highlightthickness=0)
+  self.label(f,tabletop_layout.scene_caption(story.PLACES[self.c['location']][0],self.c.get('enemy')),11,fg=visual_theme.COLORS['muted_ink']).pack(anchor='w',padx=18,pady=(4,0))
+  cv=tk.Canvas(f,height=layout.scene_height,bg=DARK,highlightthickness=0)
   cv.pack(fill='x',padx=12,pady=8)
   cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
   self.label(f,story.journal(self.c),15,wraplength=650).pack(anchor='w',padx=18,pady=5)
