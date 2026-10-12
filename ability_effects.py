@@ -25,3 +25,33 @@ def ward(hero,move,success):
     if not success:return 'The ward does not take hold.'
     hero['ward_charges']=min(2,hero.get('ward_charges',0)+1)
     return move+' grants a protective ward against the next hit.'
+
+def offensive_effect(c,hero,move):
+    """Additional effects after a successful, authorized attack; no extra rolls."""
+    enemy=c.get('enemy')
+    if not enemy or not move or move not in hero.get('moves',[]):return (0,'')
+    school=hero.get('magic') if hero.get('class')=='Mage' else None
+    path=hero.get('path','')
+    if school=='Fire':
+        return (2,'Flames intensify the hit.')
+    if school=='Lightning':
+        enemy['staggered']=True
+        return (1,'Electric shock interrupts the counterattack.')
+    if school=='Blood':
+        restored=min(2,hero['max_hp']-hero['hp'])
+        hero['hp']+=restored
+        return (0,'Sanguine magic restores '+str(restored)+' HP.')
+    if school=='Dark':
+        enemy['weakened']=True
+        return (0,'Shadows weaken the enemy’s next blow.')
+    if school=='Light':
+        hero['ward_charges']=min(2,hero.get('ward_charges',0)+1)
+        return (0,'Radiance grants a ward.')
+    if school=='Creation':
+        return (1,'The conjured form strengthens the strike.')
+    if path=='Assassin':
+        return (2,'The precise strike finds a weak point.')
+    if path=='Paladin':
+        hero['ward_charges']=min(2,hero.get('ward_charges',0)+1)
+        return (0,'Sacred energy reinforces a ward.')
+    return (0,'')
