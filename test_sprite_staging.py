@@ -16,7 +16,7 @@ class SpriteStagingTests(unittest.TestCase):
    with zipfile.ZipFile(original,'w') as z:z.writestr('sprites/monster pack.zip',nested.getvalue())
    data=stage(original,root/'staged',max_images=10)
    self.assertEqual(data['candidate_count'],1)
-   self.assertEqual(data['counts']['enemy'],1)
+   self.assertEqual(data['counts']['enemies'],1)
    self.assertFalse(data['release_approved'])
    item=data['candidates'][0]
    self.assertEqual(item['pack'],'monster pack.zip')
