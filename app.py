@@ -10,7 +10,7 @@ DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGH
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
  def _load_asset_index(self):
   index=DATA/'approved sprites'/'manifest.json'
   if index.is_file():
@@ -77,6 +77,7 @@ class App(tk.Tk):
    self.q.put(('services',(popup,status,result)))
   threading.Thread(target=worker,daemon=True).start()
  def _home(self):
+  self.pending_narration=None
   self.last_visual_cue=None;self.animation_director.clear();self.c=None;self.page('The Book of Unwritten Roads')
   body=tk.Frame(self,bg=DARK);body.pack(expand=True,fill='both',padx=18,pady=15)
   left,inside=self.card(body,'Campaign Library');left.pack(side='left',fill='y',padx=(0,12))
@@ -427,7 +428,11 @@ class App(tk.Tk):
   self.label(f,f'{result["roll"]} {result["modifier"]:+d} = {result["total"]}   ·   DC {result["dc"]}',13).pack(pady=5)
   self.button(f,'CONTINUE',win.destroy).pack(pady=10)
  def _narrate(self,resolved):
-  if self.busy:return
+  if not self.c:return
+  if self.busy:
+   # Keep the newest request; never block the player or spawn many AI jobs.
+   self.pending_narration=(self.c['id'],resolved)
+   return
   self.busy=True;identity=self.c['id'];snapshot=json.loads(json.dumps(self.c))
   def worker():
    try:message=ai.narrate(snapshot,resolved)
@@ -501,6 +506,10 @@ class App(tk.Tk):
      self.busy=False
      if self.c and self.c['id']==value[0]:
       self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
+     pending=self.pending_narration
+     self.pending_narration=None
+     if pending and self.c and pending[0]==self.c['id']:
+      self._narrate(pending[1])
   except queue.Empty:pass
   if not self._closed:self._poll_job=self.after(400,self._poll)
  def destroy(self):
