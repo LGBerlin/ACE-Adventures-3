@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story,dice_ledger,merchant,equipment,party_commands
+import game,story,dice_ledger,merchant,equipment,party_commands,loot_system,town_services
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -54,6 +54,26 @@ def perform(c,text,rng=None):
         if not item:raise ValueError('That is not a usable consumable.')
         msg=game.use_item(c,item,rng=rng)
         return {'roll_required':False,'result':msg,'action':text,'choice':'use_item'}
+    npc=re.fullmatch(r'(?:i\s+)?(?:talk to|speak to|chat with)\s+(.+?)[.!]?',lower)
+    if npc:
+        name=next((name for name in town_services.PEOPLE if name.casefold()==npc.group(1).strip()),npc.group(1))
+        msg=town_services.talk(c,name)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'townsfolk'}
+    crafting=re.fullmatch(r'(?:i\s+)?enchant\s+(.+?)[.!]?',lower)
+    if crafting:
+        item=next((name for name in loot_system.ITEMS if name.casefold()==crafting.group(1).strip()),None)
+        if item is None:raise ValueError('Unknown equipment.')
+        msg=loot_system.enchant(c,item)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'enchant'}
+    guild=re.fullmatch(r'(?:i\s+)?(?:accept guild job|accept quest)\s+(.+?)[.!]?',lower)
+    if guild:
+        name=next((name for name in town_services.JOBS if name.casefold()==guild.group(1).strip()),None)
+        if not name:raise ValueError('Unknown guild job.')
+        msg=town_services.accept(c,name)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
+    if lower in ('complete guild job','claim guild reward'):
+        msg=town_services.complete(c)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
     # Combat always takes precedence. No travel, merchant or free social
     # interaction can silently bypass an active enemy turn.
     if c.get('enemy'):
