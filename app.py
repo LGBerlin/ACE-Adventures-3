@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -59,6 +59,7 @@ class App(tk.Tk):
   self.label(inside,'Content updates: '+self.update_status,11,wraplength=450).pack(anchor='w',padx=12,pady=4)
   self.button(inside,'CHECK FOR CONTENT UPDATES',self._check_content_updates,True).pack(padx=12,pady=4)
   self.button(inside,'RESTORE PREVIOUS CONTENT',self._rollback_content,True).pack(padx=12,pady=4)
+  self.button(inside,'CHECK APP RELEASES (MANUAL INSTALL)',self._check_app_releases,True).pack(padx=12,pady=4)
   self.button(inside,'GENERATE LOCATION ART (COMFYUI)',lambda:self._generate_scene(popup,status),True).pack(padx=12,pady=4)
   def worker():
    result=ai_connections.all_statuses(timeout=2)
@@ -240,6 +241,13 @@ class App(tk.Tk):
    except Exception as e:
     self.q.put(('generated',(popup,status,place,None,str(e)[:200])))
   threading.Thread(target=worker,daemon=True).start()
+ def _check_app_releases(self):
+  """Check for a real released app without modifying the running Mac bundle."""
+  def worker():
+   result=app_release_checker.check('1.0.0')
+   self.q.put(('app_release',result))
+  threading.Thread(target=worker,daemon=True).start()
+
  def _rollback_content(self):
   """Restore the last verified content package, never edit saved adventures."""
   try:
@@ -271,6 +279,12 @@ class App(tk.Tk):
      if path:
       if self.c:self._adventure()
       else:self._home()
+    if kind=='app_release':
+     if value.get('status')=='available':
+      self.update_status='Application '+value['version']+' available: '+value['download_url']
+     elif value.get('status')=='current':self.update_status='Application release is current'
+     else:self.update_status='No verified application release found'
+     messagebox.showinfo('Application Releases',self.update_status+'\\nThe Mac app will not modify itself.')
     if kind=='updates':
      status,version=value
      self.update_status=('Art and stories updated to '+version if status=='updated' else
