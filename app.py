@@ -117,7 +117,7 @@ class Game(tk.Tk):
   if place=="Forest" and c["stage"]==3 and c["enemy"]==0 and not c["won"]:self.button(left,"Approach the ruined arch",self.encounter).pack(anchor="w",padx=18)
   if place=="Square" and c["won"]:self.text(left,"Quest completed — the Hollow Bell falls silent.",18).pack(pady=15)
  def story(self,stage,line):
-  self.c["stage"]=stage;self.c["history"].append(line);self.persist();self.world()
+  self.c["stage"]=stage;self.c["history"].append(line);self.persist();self.world();self.narrate(s,line)
  def travel(self,place):
   self.c["place"]=place;self.persist();self.world()
  def encounter(self):
@@ -133,6 +133,28 @@ class Game(tk.Tk):
    if c["enemy"]==0:c["won"]=True;c["stage"]=4;line+=" Guardian defeated. Return to town."
    else:h["hp"]=max(0,h["hp"]-random.randint(1,3))
   c["history"].append(line);self.persist();self.world()
+ def narrate(self,player_action,verified_outcome):
+  """Local Ollama adds prose, never changes dice, HP, gold or quest state."""
+  campaign=self.c
+  def worker():
+   tags=health("http://127.0.0.1:11434/api/tags")
+   if not isinstance(tags,dict):return
+   models=[x.get("name","") for x in tags.get("models",[]) if isinstance(x,dict)]
+   model=next((x for x in models if x.startswith("qwen3.5:4b")),models[0] if models else None)
+   if not model:return
+   prompt=("You are a grounded tabletop fantasy Dungeon Master. Write 2-3 atmospheric sentences. "
+           "Never alter the outcome of the verified dice, never invent obtained equipment, "
+           "XP, HP changes, or quest completion. Treat this as settled. "
+           "Setting: "+str(campaign.get("place","Square"))+
+           "\\nRecent events: "+str(campaign.get("history",[])[-4:])+
+           "\\nPlayer action: "+player_action+"\\nVerified outcome: "+verified_outcome)
+   body=json.dumps({"model":model,"prompt":prompt,"stream":False,"options":{"num_predict":130}}).encode()
+   req=urllib.request.Request("http://127.0.0.1:11434/api/generate",data=body,headers={"Content-Type":"application/json"})
+   try:
+    with urllib.request.urlopen(req,timeout=45) as response:reply=json.load(response).get("response","").strip()
+    if reply:self.q.put(("story",campaign,reply[:900]))
+   except Exception:pass
+  threading.Thread(target=worker,daemon=True).start()
  def select(self,i):self.active=i;self.world()
  def sheet(self):
   h=self.c["heroes"][self.active]
@@ -151,8 +173,14 @@ class Game(tk.Tk):
  def poll(self):
   try:
    while True:
-    widget,msg=self.q.get_nowait()
-    if widget.winfo_exists():widget.config(text=msg)
+    item=self.q.get_nowait()
+    if len(item)==3 and item[0]=="story":
+     _,campaign,msg=item
+     if campaign is self.c:
+      campaign["history"].append("Dungeon Master: "+msg);self.persist();self.world()
+    else:
+     widget,msg=item
+     if widget.winfo_exists():widget.config(text=msg)
   except queue.Empty:pass
   self.after(150,self.poll)
 if __name__=="__main__":Game().mainloop()
