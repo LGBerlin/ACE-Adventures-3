@@ -96,6 +96,27 @@ def encounter(c,rng=None):
     import combat_log
     combat_log.append(c,actor=c['enemy']['name'],kind='encounter',description='A hostile creature appears.',hp=c['enemy']['hp'])
 
+def enemy_response(c,hero,rng,guard=0):
+    """Single authoritative enemy reaction shared by attacks, guard, spells and items."""
+    enemy=c.get('enemy')
+    if not enemy:return ''
+    import loot_system
+    phase=2 if enemy.get('boss') and enemy['hp']<=enemy.get('max_hp',30)//2 else 1
+    if enemy.get('boss'):
+        enemy['phase']=phase
+        move='Bellshock' if phase==2 else 'Guardian Slam'
+        rolled=rng.randint(2,5) if phase==2 else rng.randint(1,4)
+    else:
+        move='Counterattack'
+        rolled=rng.randint(1,4)
+    defense=loot_system.bonuses(hero)['defense']
+    damage=max(0,rolled-max(0,guard)-defense)
+    hero['hp']=max(0,hero['hp']-damage)
+    if not any(member['hp']>0 for member in c['characters']):
+        c['party_defeated']=True
+    prefix='Boss uses '+move+'. ' if enemy.get('boss') else ''
+    return prefix+('Enemy retaliates for '+str(damage)+' HP.' if damage else 'The attack is blocked.')
+
 def use_item(c,item,hero_index=None,rng=None):
     """Use inventory items with authoritative, persisted effects.
 
@@ -118,9 +139,7 @@ def use_item(c,item,hero_index=None,rng=None):
         # Consuming supplies during battle takes the character's turn.
         # Prevent free unlimited healing while a hostile opponent remains.
         attacker=rng or random.Random()
-        retaliation=attacker.randint(1,4)
-        hero['hp']=max(0,hero['hp']-retaliation)
-        message+=f" Enemy retaliates for {retaliation} HP."
+        message+=' '+enemy_response(c,hero,attacker)
     c['history'].append(message)
     c['turn']+=1
     if c.get('enemy'):
@@ -229,22 +248,11 @@ def action(c,text,rng=None):
             c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
-            if c['enemy'].get('boss'):
-                phase=2 if c['enemy']['hp']<=c['enemy'].get('max_hp',30)//2 else 1
-                c['enemy']['phase']=phase
-                strike='Bellshock' if phase==2 else 'Guardian Slam'
-                dmg=rng.randint(2,5) if phase==2 else rng.randint(1,4)
-                outcome.append('Boss uses '+strike+'.')
-            else:
-                dmg=rng.randint(1,4)
-            hero['hp']=max(0,hero['hp']-dmg)
-            outcome.append(f'Enemy retaliates for {dmg} HP.')
+            outcome.append(enemy_response(c,hero,rng))
     elif defensive:
-        incoming=rng.randint(1,4)
-        reduction=(2 if total>=dc else 1)+min(3,sum(' Mastery ' in p for p in hero.get('passives',[]))//3)
-        damage=max(0,incoming-reduction)
-        hero['hp']=max(0,hero['hp']-damage)
-        outcome.append(f'Guard stance reduces an incoming {incoming} damage to {damage}.')
+        incoming_reduction=(2 if total>=dc else 1)+min(3,sum(' Mastery ' in p for p in hero.get('passives',[]))//3)
+        message=enemy_response(c,hero,rng,guard=incoming_reduction) if c.get('enemy') else 'Guard stance held.'
+        outcome.append('Guard stance. '+message)
     elif 'smoke' in t or 'cover' in t:
         if known and hero['magic']=='Fire' and any(x in t for x in ['leaves','grass','wood']) and total>=dc:
             c['smoke']=True;outcome.append('Flammable terrain catches, creating smoke cover.')
@@ -255,9 +263,7 @@ def action(c,text,rng=None):
         # hides, or tries another creative action. Avoid free infinite turns.
         if c.get('enemy'):
             guarded=any(re.search(r'(?<!\w)'+word+r'(?!\w)',t) for word in ('guard','defend','block','shield','dodge')) and total>=dc
-            retaliation=max(0,rng.randint(1,4)-(2 if guarded else 0))
-            hero['hp']=max(0,hero['hp']-retaliation)
-            outcome.append(f'Enemy retaliates for {retaliation} HP.' if retaliation else 'Your guard prevents the counterattack.')
+            outcome.append(enemy_response(c,hero,rng,guard=2 if guarded else 0))
     result=f'D20 {roll} {modifier:+d} = {total}, DC {dc}: {degree}. '+' '.join(outcome)
     c['turn']+=1;c['history'].append(hero['name']+': '+text+'\n'+result)
     if c.get('enemy') or attack or defensive:
