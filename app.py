@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -124,28 +124,56 @@ class App(tk.Tk):
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
  def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
-  self.page(story.journal(self.c));top=tk.Frame(self,bg=DARK);top.pack(fill='x',padx=13,pady=5)
-  for i,h in enumerate(self.c['characters']):self.button(top,('◆ ' if i==self.c['active'] else '')+h['name'],lambda i=i:self._switch(i)).pack(side='left',padx=4)
-  self.button(top,'SAVE & EXIT',self._exit).pack(side='right',padx=4)
+  self.page('The Hollow Bell')
   if not self.c['started']:
    outer,inside=self.card(self,'The party has gathered');outer.pack(fill='both',expand=True,padx=80,pady=25)
-   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['path'],16).pack(padx=18,pady=10)
-   self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25);return
-  body=tk.Frame(self,bg=DARK);body.pack(fill='both',expand=True,padx=14,pady=8)
-  left=tk.Frame(body,bg=DARK);left.pack(side='left',fill='both',expand=True,padx=(0,10));right=tk.Frame(body,bg=DARK,width=340);right.pack(side='right',fill='y');right.pack_propagate(False)
-  outer,f=self.card(left,'Ashwood Encounter' if self.c.get('enemy') else story.PLACES[self.c['location']][0]);outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,height=300,bg=DARK,highlightthickness=0);cv.pack(fill='x',padx=12,pady=12);cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
-  self.label(f,story.journal(self.c),17,wraplength=660).pack(anchor='w',padx=18,pady=7)
-  self.label(f,story.flavour(self.c,DATA),12,wraplength=660).pack(anchor='w',padx=18,pady=4)
-  history=self.c['history'][-3:] or ['Your party enters Briarhollow. A bell tolls, although the tower stands empty.']
-  self.label(f,'\n\n'.join(history),13,wraplength=660).pack(anchor='w',padx=18,pady=8)
-  actions=tk.Frame(f,bg=PARCH);actions.pack(fill='x',padx=15,pady=10)
-  for i,(title,key) in enumerate(story.options(self.c)):
-   self.button(actions,title,lambda key=key:self._choose(key),True).grid(row=i//2,column=i%2,padx=4,pady=5,sticky='ew');actions.grid_columnconfigure(i%2,weight=1)
-  self.label(f,'Describe another action to your Dungeon Master',12).pack(anchor='w',padx=15)
-  row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=12,pady=(4,13));entry=tk.Entry(row,font=('Georgia',14),bg='#f8e8c8',fg=INK,relief='sunken',bd=2,insertbackground=INK);entry.pack(side='left',fill='x',expand=True,padx=4)
-  self.button(row,'CAST THE DIE  ⚄',lambda:self._free(entry.get())).pack(side='right')
+   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['class']+' · '+hero['path'],16).pack(padx=18,pady=10)
+   self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25)
+   return
+  body=tk.Frame(self,bg=DARK)
+  body.pack(fill='both',expand=True,padx=14,pady=10)
+  right=tk.Frame(body,bg=DARK,width=330)
+  right.pack(side='right',fill='y',padx=(9,0))
+  right.pack_propagate(False)
   self._sidebar(right)
+  left=tk.Frame(body,bg=DARK)
+  left.pack(side='left',fill='both',expand=True)
+  party,party_inside=self.card(left,'Your party')
+  party.pack(fill='x',pady=(0,7))
+  members=tk.Frame(party_inside,bg=PARCH)
+  members.pack(fill='x',padx=12,pady=7)
+  for i,h in enumerate(self.c['characters']):
+   line=('%s  ·  %s  ·  HP %s/%s'%(h['name'],game.display_archetype(h),h['hp'],h['max_hp']))
+   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).pack(side='left',padx=3,pady=3)
+  outer,f=self.card(left,story.PLACES[self.c['location']][0])
+  outer.pack(fill='both',expand=True)
+  cv=tk.Canvas(f,height=225,bg=DARK,highlightthickness=0)
+  cv.pack(fill='x',padx=12,pady=8)
+  cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
+  self.label(f,story.journal(self.c),15,wraplength=650).pack(anchor='w',padx=18,pady=5)
+  self.label(f,story.flavour(self.c,DATA),12,wraplength=650).pack(anchor='w',padx=18,pady=4)
+  historybox=tk.Frame(f,bg='#f7e7c6',highlightbackground=BRASS,highlightthickness=1)
+  historybox.pack(fill='both',expand=True,padx=14,pady=(6,9))
+  history=tk.Text(historybox,font=('Georgia',12),bg='#f7e7c6',fg=INK,relief='flat',wrap='word',height=7,padx=10,pady=8)
+  history.pack(side='left',fill='both',expand=True)
+  scroll=tk.Scrollbar(historybox,command=history.yview)
+  scroll.pack(side='right',fill='y')
+  history.configure(yscrollcommand=scroll.set)
+  lines=self.c['history'][-45:] or ['Your party arrives in Briarhollow.']
+  history.insert('1.0','\\n\\n'.join(lines))
+  history.configure(state='disabled')
+  history.see('end')
+  self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
+  row=tk.Frame(f,bg=PARCH)
+  row.pack(fill='x',padx=13,pady=(0,12))
+  entry=tk.Entry(row,font=('Georgia',14),bg='#fff0d3',fg=INK,insertbackground=INK,relief='solid',bd=2)
+  entry.pack(side='left',fill='x',expand=True,padx=4,ipady=6)
+  def submit():
+   entered=entry.get().strip()
+   if entered:self._free(entered)
+  entry.bind('<Return>',lambda event:submit())
+  self.button(row,'SEND ACTION',submit,True).pack(side='right',padx=4)
+  entry.focus_set()
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
@@ -199,15 +227,21 @@ class App(tk.Tk):
   if not text:return
   try:
    had_enemy=bool(self.c.get('enemy'))
-   result=game.action(self.c,text)
+   result=interaction.perform(self.c,text)
    hero=self.c['characters'][self.c['active']]
-   visual=visual_mapping.cue_for(hero,result)
-   self.last_visual_cue=self.animation_director.enqueue(str(hero['id']),visual['animation'],visual['effect'] or '')
+   if result['roll_required']:
+    visual=visual_mapping.cue_for(hero,result)
+    self.last_visual_cue=self.animation_director.enqueue(str(hero['id']),visual['animation'],visual['effect'] or '')
+   else:
+    self.last_visual_cue=None
+    self.animation_director.clear()
    game.save(DATA,self.c)
    if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
     story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
    if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
-   self._adventure();self._roll_display(result);self._narrate(result['result'])
+   self._adventure()
+   if result['roll_required']:self._roll_display(result)
+   self._narrate(result['result'])
   except ValueError as e:messagebox.showwarning('Action',str(e))
  def _roll_display(self,result):
   win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
