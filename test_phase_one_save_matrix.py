@@ -54,6 +54,25 @@ class PhaseOneSaveMatrix(unittest.TestCase):
     c['characters'][0][path]=value
     with tempfile.TemporaryDirectory() as folder:
      with self.assertRaises(ValueError):game.save(folder,c)
+ def test_symlinked_campaign_folder_is_not_writable(self):
+  with tempfile.TemporaryDirectory() as folder:
+   base=Path(folder)
+   external=base/'external';external.mkdir()
+   root=base/'app';root.mkdir()
+   (root/'campaigns').symlink_to(external,target_is_directory=True)
+   with self.assertRaises(ValueError):game.save(root,self.make())
+   self.assertEqual(game.load_all(root),[])
+   self.assertEqual(list(external.iterdir()),[])
+ def test_symlinked_individual_save_is_rejected(self):
+  with tempfile.TemporaryDirectory() as folder:
+   root=Path(folder)
+   c=self.make()
+   folder_path=root/'campaigns';folder_path.mkdir()
+   external=root/'outside.json';external.write_text('SAFE')
+   (folder_path/(c['id']+'.json')).symlink_to(external)
+   with self.assertRaises(ValueError):game.save(root,c)
+   self.assertEqual(external.read_text(),'SAFE')
+   self.assertEqual(game.load_all(root),[])
  def test_corrupted_optional_fields_do_not_load(self):
   with tempfile.TemporaryDirectory() as folder:
    c=self.make();game.save(folder,c)
