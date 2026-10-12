@@ -7,6 +7,14 @@ MOVES={'Thief':['Quick Hands','Pocket Sand','Nimble Escape'],'Ranger':['Quick Sh
 SKILLS=['Perception','Stealth','Acrobatics','Athletics','Persuasion','Investigation','Arcana','Insight','Survival','Nature']
 TOWN={'tavern':{'npc':'Mira the Innkeeper','text':'The hearth crackles. Mira knows rumours of a stolen bell.'},'market':{'npc':'Oren the Merchant','text':'A merchant displays potions and worn swords.'},'gate':{'npc':'Captain Rowan','text':'A guard keeps watch at the forest gate.'},'square':{'npc':'Elder Sera','text':'Villagers gather by the silent bell tower.'}}
 
+def display_archetype(hero):
+    """Narrative role, never a fifth selectable class."""
+    if hero.get('class')=='Mage' and hero.get('magic')=='Support':
+        return 'Cleric'
+    if hero.get('class')=='Rogue' and hero.get('path')=='Ranger':
+        return 'Ranger'
+    return hero.get('path') or hero.get('class','Adventurer')
+
 def character(name,age,kind,rng=None):
     rng=rng or random.Random()
     if kind not in PATHS or not name.strip() or len(name)>32 or not 10<=int(age)<=120:raise ValueError('Enter a valid name, age (10–120) and class.')
