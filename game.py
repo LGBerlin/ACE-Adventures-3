@@ -81,7 +81,7 @@ def encounter(c,rng=None):
     c['enemy']={'name':rng.choice(['Moss Goblin','Thorn Wolf','Forest Wisp']),'hp':15,'max_hp':15,'ac':12,'pos':[5,2]}
     c['history'].append('An enemy blocks the forest road. Battle begins!')
 
-def use_item(c,item,hero_index=None):
+def use_item(c,item,hero_index=None,rng=None):
     """Use inventory items with authoritative, persisted effects.
 
     No AI response is allowed to directly change HP, inventory, or gold.
@@ -99,6 +99,13 @@ def use_item(c,item,hero_index=None):
     hero['hp']+=amount
     hero['inventory'].remove(item)
     message=f"{hero['name']} drinks {item} and restores {amount} HP."
+    if c.get('enemy'):
+        # Consuming supplies during battle takes the character's turn.
+        # Prevent free unlimited healing while a hostile opponent remains.
+        attacker=rng or random.Random()
+        retaliation=attacker.randint(1,4)
+        hero['hp']=max(0,hero['hp']-retaliation)
+        message+=f" Enemy retaliates for {retaliation} HP."
     c['history'].append(message)
     c['turn']+=1
     return message
