@@ -252,7 +252,7 @@ def action(c,text,rng=None):
     elif defensive:
         incoming_reduction=(2 if total>=dc else 1)+min(3,sum(' Mastery ' in p for p in hero.get('passives',[]))//3)
         message=enemy_response(c,hero,rng,guard=incoming_reduction) if c.get('enemy') else 'Guard stance held.'
-        outcome.append('Guard stance. '+message)
+        outcome.append('Guard stance reduces incoming damage. '+message)
     elif 'smoke' in t or 'cover' in t:
         if known and hero['magic']=='Fire' and any(x in t for x in ['leaves','grass','wood']) and total>=dc:
             c['smoke']=True;outcome.append('Flammable terrain catches, creating smoke cover.')
