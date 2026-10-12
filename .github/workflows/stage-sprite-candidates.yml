@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - '.github/workflows/stage-sprite-candidates.yml'
+      - 'stage_sprite_candidates.py'
+      - 'test_sprite_staging.py'
 permissions:
   contents: read
 jobs:
@@ -21,6 +23,7 @@ jobs:
       - name: Stage capped sprite candidate collection
         run: |
           python -m pip install --quiet Pillow
+          python -m unittest test_sprite_staging -v
           python stage_sprite_candidates.py source/sprites.2.zip 'staged candidates'
       - name: Verify provenance and safe bundle size
         run: |
