@@ -272,9 +272,12 @@ class App(tk.Tk):
      self.label(line,item,10).pack(side='left')
      self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
   elif self.panel=='Town':
-   quests=town_services.active_quests(self.c)
+   quests=town_services.quest_status(self.c)
    self.label(txt,'ACTIVE QUESTS '+str(len(quests))+'/2',13).pack(anchor='w',pady=4)
-   for quest in quests:self.label(txt,'◇ '+quest['name'],10).pack(anchor='w',pady=2)
+   for quest in quests:
+    self.label(txt,'◇ '+quest['name'],10).pack(anchor='w',pady=2)
+    if quest.get('objective'):
+     self.label(txt,'   ↳ '+quest['objective'],10).pack(anchor='w',pady=1)
    if self.c.get('last_enchant_spin'):
     spin=self.c['last_enchant_spin']
     self.label(txt,'LAST ENCHANT WHEEL: '+spin['outcome']+' +'+str(spin['level']),10).pack(anchor='w',pady=4)
