@@ -19,7 +19,7 @@ jobs:
       - name: Verify complete illustrated application
         run: python release_preflight.py
       - name: Install packager
-        run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0 certifi
+        run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0 certifi psutil
       - name: Test and compile
         run: |
           python -m compileall -q .
@@ -64,6 +64,8 @@ jobs:
                   proc.kill()
                   proc.communicate()
           PY
+      - name: Check packaged-app idle resource budget
+        run: python mac_resource_smoke.py
       - name: Package artifact
         run: |
           ditto -c -k --sequesterRsrc --keepParent 'dist/ACE Adventures 3.app' 'ACE Adventures 3 Mac App.zip'
