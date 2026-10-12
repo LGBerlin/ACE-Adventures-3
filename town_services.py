@@ -28,16 +28,24 @@ def accept(c,name):
  if not c.get("started") or c.get("enemy") or c.get("location")!="square":raise ValueError("Visit the guild captain in the square.")
  if name not in JOBS:raise ValueError("Unknown guild job.")
  if c.get("guild_job"):raise ValueError("Only one guild assignment can accompany the main quest: two active quests maximum.")
- c["guild_job"]={"name":name,"start_turn":c["turn"]}
+ c["guild_job"]={"name":name,"start_turn":c["turn"],"origin":c["location"],"visited_goal":False}
  c["history"].append("Accepted guild job: "+name)
  c["turn"]+=1
  return c["history"][-1]
+def note_travel(c,place):
+ """Only actual travel after accepting a job can satisfy its destination."""
+ job=c.get("guild_job")
+ if job and place==JOBS[job["name"]]["goal"] and c.get("turn",0)>job["start_turn"]:
+  job["visited_goal"]=True
+
 def complete(c):
  job=c.get("guild_job")
  if not job:raise ValueError("No active guild job.")
  details=JOBS[job["name"]]
- if c.get("enemy") or c["location"]!=details["goal"] or c["turn"]<=job["start_turn"]+1:
-  raise ValueError("Complete the guild assignment before collecting your reward.")
+ if c.get("enemy") or not job.get("visited_goal"):
+  raise ValueError("Visit the guild destination before collecting a reward.")
+ if c.get("location")!="square":
+  raise ValueError("Return to Captain Rowan in the square to claim your reward.")
  import game
  h=c["characters"][c["active"]]
  h["gold"]+=details["reward_gold"]
