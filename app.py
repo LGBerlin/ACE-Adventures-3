@@ -188,8 +188,11 @@ class App(tk.Tk):
    battle.pack(fill='x',padx=14,pady=5)
    self.label(battle,f"⚔ BATTLE · {foe['name']} · HP {foe['hp']}/{foe.get('max_hp',foe['hp'])}",13,LIGHT,'#513322').pack(anchor='w',padx=10,pady=5)
    actions=tk.Frame(battle,bg='#513322');actions.pack(fill='x',padx=8,pady=4)
-   for caption,command in [('ATTACK','I attack the enemy'),('GUARD','I guard'),('NEGOTIATE','I negotiate')]:
-    self.button(actions,caption,lambda command=command:self._free(command),True).pack(side='left',padx=4)
+   if self.c.get('party_defeated'):
+    self.button(actions,'RECOVER IN TOWN',lambda:self._free('recover party'),True).pack(side='left',padx=4)
+   else:
+    for caption,command in [('ATTACK','I attack the enemy'),('GUARD','I guard'),('NEGOTIATE','I negotiate')]:
+     self.button(actions,caption,lambda command=command:self._free(command),True).pack(side='left',padx=4)
   if self.busy:
    self.label(f,'The Dungeon Master is preparing the next passage...',11).pack(anchor='w',padx=16,pady=3)
   self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
