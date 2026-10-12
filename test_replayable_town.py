@@ -47,6 +47,21 @@ class ReplayableTownTests(unittest.TestCase):
    self.assertEqual(restored['town_memory']['Nella'],2)
    final=interaction.perform(restored,'talk to Nella')
    self.assertIn('familiar face',final['result'])
+ def test_guild_rank_restricts_and_unlocks_higher_jobs(self):
+  c=self.make()
+  self.assertEqual(town_services.guild_rank(c),'Novice')
+  with self.assertRaisesRegex(ValueError,'reputation'):
+   town_services.accept(c,'Armory Requisition')
+  self.assertNotIn('Armory Requisition',town_services.available_jobs(c))
+  c['guild_jobs_completed']=2
+  self.assertEqual(town_services.guild_rank(c),'Trusted')
+  self.assertIn('Armory Requisition',town_services.available_jobs(c))
+  town_services.accept(c,'Armory Requisition')
+  with self.assertRaises(ValueError):town_services.accept(c,'Supply Run')
+  town_services.abandon(c)
+  c['guild_jobs_completed']=4
+  self.assertEqual(town_services.guild_rank(c),'Veteran')
+  self.assertIn('Veteran Reconnaissance',town_services.available_jobs(c))
  def test_defeated_or_remote_player_cannot_claim(self):
   c=self.make()
   town_services.accept(c,'Medicine Delivery')
