@@ -24,7 +24,7 @@ class AccessibleTabletop(unittest.TestCase):
     self.assertTrue(buttons)
     bindings=buttons[0].bind()
     self.assertIn('<FocusIn>',bindings)
-    self.assertIn('<Return>',bindings)
+    self.assertIn('<Key-Return>',bindings)
     self.assertIn('<Enter>',bindings)
     scrollers=[w for w in widgets if isinstance(w,tk.Canvas) and '<MouseWheel>' in w.bind()]
     self.assertTrue(scrollers)
