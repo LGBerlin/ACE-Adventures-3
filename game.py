@@ -232,9 +232,7 @@ def action(c,text,rng=None):
         else:
             outcome.append('The support spell fails to take hold.')
         if c.get('enemy'):
-            retaliation=rng.randint(1,4)
-            hero['hp']=max(0,hero['hp']-retaliation)
-            outcome.append(f'Enemy retaliates for {retaliation} HP.')
+            outcome.append(enemy_response(c,hero,rng))
     elif attack:
         if degree in ('Success','Exceptional Success','Critical Success'):
             dmg=rng.randint(1,6)+max(0,modifier)
