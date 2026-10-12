@@ -70,6 +70,9 @@ def perform(c,text,rng=None):
         if not name:raise ValueError('Unknown guild job.')
         msg=town_services.accept(c,name)
         return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
+    if lower in ('abandon guild job','cancel guild quest','abandon quest'):
+        msg=town_services.abandon(c)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
     if lower in ('complete guild job','claim guild reward'):
         msg=town_services.complete(c)
         return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
