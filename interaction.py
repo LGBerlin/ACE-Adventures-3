@@ -57,6 +57,12 @@ def perform(c,text,rng=None):
     if choice is not None:
         outcome=story.select(c,choice)
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
+    consume=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(?:use|drink|consume)\s+(?:a |an |the |my )?(.+?)[.!]?',lower)
+    if consume:
+        item=next((item for item in ('Healing Draught','Health Potion') if item.casefold()==consume.group(1).strip()),None)
+        if not item:raise ValueError('That is not a usable consumable.')
+        msg=game.use_item(c,item)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'use_item'}
     gear=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(equip|wield|unequip|sheathe)\s*(?:my |the |a |an )?(.*?)[.!]?',lower)
     if gear:
         verb,name=gear.groups()
