@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog
+import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -160,6 +160,11 @@ class App(tk.Tk):
      if entry['level']>1:
       label=('✦  ' if entry['name'] in unlocked else '◇  ')+entry['name']+'  ·  Level '+str(entry['level'])
       self.label(txt,label,11).pack(anchor='w',pady=2)
+   elif h['class'] in ('Fighter','Rogue','Vessel'):
+    unlocked=set(technique_catalog.unlocked(h['path'],h['level']))
+    for entry in technique_catalog.catalog(h['path']):
+     label=('✦  ' if entry['name'] in unlocked else '◇  ')+entry['name']+'  ·  Level '+str(entry['level'])
+     self.label(txt,label,11).pack(anchor='w',pady=2)
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
  def _consume(self,item):
