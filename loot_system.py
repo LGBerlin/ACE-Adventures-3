@@ -33,7 +33,8 @@ def bonuses(h):
     relevant=(field=="attack" and kind=="weapon") or (field=="defense" and kind=="armor") or (field=="mana" and kind=="trinket")
     result[field]+=spec.get(field,0)+(h.get("enchantments",{}).get(item,0) if relevant else 0)
  return result
-def enchant(c,item):
+ENCHANT_TYPES=('Ember','Frost','Storm','Fortitude','Arcane','Fortune')
+def enchant(c,item,rng=None):
  h=hero_for(c)
  if c.get("location")!="market":raise ValueError("Visit the town enchanter at the market.")
  if item not in h["inventory"] or item not in ITEMS:raise ValueError("Bring equipment you own.")
@@ -41,7 +42,12 @@ def enchant(c,item):
  if level>=3:raise ValueError("Maximum enchantment reached.")
  cost=15*(level+1)
  if h["gold"]<cost:raise ValueError("Not enough gold to enchant.")
+ import random
+ spin=(rng or random.Random()).randrange(len(ENCHANT_TYPES))
+ kind=ENCHANT_TYPES[spin]
  h["gold"]-=cost;h["enchantments"][item]=level+1
- msg=h["name"]+" enchants "+item+" to +"+str(level+1)+"."
+ h.setdefault("enchant_types",{})[item]=kind
+ c["last_enchant_spin"]={"item":item,"slot":spin,"outcome":kind,"level":level+1}
+ msg=h["name"]+" spins the enchantment wheel: "+kind+" +"+str(level+1)+" on "+item+"."
  c["history"].append(msg);c["turn"]+=1
  return msg
