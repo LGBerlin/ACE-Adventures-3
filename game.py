@@ -168,7 +168,7 @@ def action(c,text,rng=None):
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
     hero['mana']-=cost
     outcome=[]
-    support_spell=known in ('Healing Wave','Restoration Prayer','Mana Boost') and hero.get('magic')=='Support'
+    support_spell=known in ('Healing Wave','Mending Light','Restoration Prayer','Sanctuary','Mana Boost') and hero.get('magic')=='Support'
     if support_spell:
         if degree in ('Success','Exceptional Success','Critical Success'):
             if known=='Mana Boost':
