@@ -133,7 +133,7 @@ class App(tk.Tk):
    try:
     if not cls.get():raise ValueError('Select a class first.')
     if not messagebox.askyesno('Permanent roll','Generate this character permanently? There are no rerolls.'):return
-    hero=game.character(name.get(),int(age.get()),cls.get());game.add_hero(self.c,hero);game.save(DATA,self.c);self._show()
+    hero=game.character(name.get(),int(age.get()),cls.get());game.add_hero(self.c,hero);game.save(DATA,self.c);self._show();ui_character_sheet.open_sheet(self,hero)
    except ValueError as e:messagebox.showerror('Character',str(e))
   self.button(f,'BIND MY FATE  ·  PERMANENT ROLL',roll).pack(pady=15)
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
@@ -188,7 +188,8 @@ class App(tk.Tk):
   self.page('The Hollow Bell')
   if not self.c['started']:
    outer,inside=self.card(self,'The party has gathered');outer.pack(fill='both',expand=True,padx=80,pady=25)
-   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['class']+' · '+hero['path'],16).pack(padx=18,pady=10)
+   for hero in self.c['characters']:
+    self.button(inside,hero['name']+' · '+hero['class']+' · '+hero['path']+' — VIEW SHEET',lambda h=hero:ui_character_sheet.open_sheet(self,h),True).pack(fill='x',padx=18,pady=6)
    self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25)
    return
   body=tk.Frame(self,bg=DARK)
@@ -205,7 +206,8 @@ class App(tk.Tk):
   members.pack(fill='x',padx=12,pady=7)
   for i,h in enumerate(self.c['characters']):
    line=('%s  ·  %s  ·  HP %s/%s'%(h['name'],game.display_archetype(h),h['hp'],h['max_hp']))
-   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).pack(side='left',padx=3,pady=3)
+   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).grid(row=i//4,column=i%4,padx=3,pady=3,sticky='ew')
+  for col in range(4):members.grid_columnconfigure(col,weight=1)
   outer,f=self.card(left,story.PLACES[self.c['location']][0])
   outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,height=225,bg=DARK,highlightthickness=0)
@@ -252,7 +254,17 @@ class App(tk.Tk):
    self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
   row.grid_columnconfigure(1,weight=1)
-  txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
+  scrollregion=tk.Frame(f,bg=PARCH)
+  scrollregion.pack(fill='both',expand=True,padx=8,pady=8)
+  viewport=tk.Canvas(scrollregion,bg=PARCH,highlightthickness=0,borderwidth=0)
+  scrollbar=tk.Scrollbar(scrollregion,command=viewport.yview)
+  txt=tk.Frame(viewport,bg=PARCH)
+  window_id=viewport.create_window((0,0),window=txt,anchor='nw')
+  txt.bind('<Configure>',lambda e:viewport.configure(scrollregion=viewport.bbox('all')))
+  viewport.bind('<Configure>',lambda e:viewport.itemconfigure(window_id,width=e.width))
+  viewport.configure(yscrollcommand=scrollbar.set)
+  scrollbar.pack(side='right',fill='y')
+  viewport.pack(side='left',fill='both',expand=True)
   if self.panel=='Record':
    for k,v in h['stats'].items():self.label(txt,f'{k}      {v:>2}     ({(v-10)//2:+d})',13).pack(anchor='w',pady=2)
    self.label(txt,'Magic: '+h['magic'],12).pack(anchor='w',pady=6)
