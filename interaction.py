@@ -99,7 +99,7 @@ def perform(c,text,rng=None):
     if choice is not None:
         outcome=story.select(c,choice)
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
-    npc=re.fullmatch(r'(?:i\s+)?(?:talk to|speak to|chat with)\s+(.+?)[.!]?',lower)
+    npc=re.fullmatch(r'(?:i\s+)?(?:talk to|speak to|chat with|ask)\s+(.+?)(?:\s+about\s+[^.!]+)?[.!]?',lower)
     if npc:
         name=next((name for name in town_services.PEOPLE if name.casefold()==npc.group(1).strip()),npc.group(1))
         msg=town_services.talk(c,name)
