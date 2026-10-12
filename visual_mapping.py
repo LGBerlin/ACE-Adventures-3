@@ -35,6 +35,14 @@ def cue_for(hero,result):
     hit=outcome is None or outcome in ('Success','Exceptional Success','Critical Success')
     cls=hero.get('class','Fighter')
     if cls not in CLASS_ATTACKS:cls='Fighter'
+    # Explicit USE commands from the ability sidebar should animate, not idle.
+    if evolved['name'] and text.startswith(('i use ','use ','i cast ','cast ')):
+        defensive=any(word in evolved['name'].casefold() for word in ('guard','ward','shield','parry','stance','counter'))
+        if defensive:
+            return {'animation':'guard','effect':None,**evolved}
+        if cls=='Mage':
+            return {'animation':'cast','effect':MAGIC_EFFECTS.get(hero.get('magic'),'magic_impact') if hit else None,**evolved}
+        return {'animation':'attack','effect':CLASS_ATTACKS[cls] if hit else None,**evolved}
     if any(x in text for x in ('guard','defend','shield','block')):
         return {'animation':'guard','effect':None,**evolved}
     if any(x in text for x in ('cast','spell','flame','lightning','magic','heal')):
