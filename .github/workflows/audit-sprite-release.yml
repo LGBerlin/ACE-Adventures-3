@@ -1,0 +1,58 @@
+name: Audit Original Sprite Archive
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p audit
+          gh release download assets-v1 --repo "${{ github.repository }}" --pattern 'sprites.2.zip' --dir audit
+          test -s audit/sprites.2.zip
+          ls -lh audit/sprites.2.zip
+          sha256sum audit/sprites.2.zip > audit/archive.sha256
+      - name: Inventory archive safely without extraction
+        run: |
+          python - <<'PY'
+          import collections,csv,json,pathlib,zipfile
+          archive=pathlib.Path('audit/sprites.2.zip')
+          report=pathlib.Path('audit')
+          ext=collections.Counter();folders=collections.Counter()
+          name_samples={}
+          total=0
+          with zipfile.ZipFile(archive) as z:
+              bad=z.testzip()
+              if bad:raise SystemExit('CORRUPTED ZIP ENTRY: '+bad)
+              infos=z.infolist()
+              if len(infos)>250000:raise SystemExit('Archive contains unexpectedly many entries')
+              with (report/'file inventory.csv').open('w',newline='',encoding='utf-8') as out:
+                  writer=csv.writer(out);writer.writerow(['Path','Bytes','Extension'])
+                  for info in infos:
+                      if info.is_dir():continue
+                      name=info.filename;size=info.file_size;total+=size
+                      suffix=pathlib.PurePosixPath(name).suffix.lower()
+                      ext[suffix]+=1
+                      folders[str(pathlib.PurePosixPath(name).parent)]+=1
+                      writer.writerow([name,size,suffix])
+                      if suffix in ('.txt','.md','.license','.lic','.csv','.json') and len(name_samples)<100:
+                          name_samples[name]=size
+          summary={'archive_bytes':archive.stat().st_size,'entries':len(infos),'uncompressed_bytes':total,'extensions':ext,'top_folders':folders.most_common(100),'license_and_metadata_candidates':name_samples}
+          (report/'summary.json').write_text(json.dumps(summary,indent=2))
+          print(json.dumps({'entries':len(infos),'extensions':ext,'top_folders':folders.most_common(20)},indent=2))
+          PY
+      - name: Upload inventory only
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACE Adventures 3 Sprite Audit
+          path: |
+            audit/archive.sha256
+            audit/summary.json
+            audit/file inventory.csv
+          retention-days: 30
