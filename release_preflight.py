@@ -2,12 +2,13 @@
 from pathlib import Path
 import ast
 ROOT=Path(__file__).resolve().parent
-MODULES=('app','game','story','story_tree','dungeon_master','ai','ai_connections','art','update_addons','addon_updates','asset_registry','animation_director','visual_mapping','character_consistency','spell_catalog','sprite_coverage','comfy_art')
+MODULES=('app','game','story','story_tree','dungeon_master','ai','ai_connections','art','update_addons','addon_updates','asset_registry','animation_director','visual_mapping','character_consistency','spell_catalog','sprite_coverage','comfy_art','interaction','town_services','merchant','loot_system','equipment','training_scrolls','technique_catalog','ability_effects','ability_progression','atlas','dice_ledger','combat_log','party_commands')
 TESTS=('test_game.py','test_story_addons.py','test_dungeon_master.py','test_reliability.py','test_updater_security.py','test_combat_regression.py','test_rollback_safety.py','test_asset_registry.py','test_animation_director.py','test_story_tree.py','test_roulette_spec.py','test_mac_gui.py','test_mac_adventure_acceptance.py','test_idle_performance.py','test_visual_mapping.py','test_dm_visual_contract.py','test_sprite_coverage.py','test_character_consistency.py','test_spell_catalog.py')
+PHASE_ONE_TESTS=('test_final_integration_overhaul.py','test_final_dm_integration.py','test_phase_one_preservation_gate.py','test_phase_one_save_matrix.py','test_full_campaign_journey.py','test_quest_update_acceptance.py','test_equipment_convergence.py','test_every_ability_evolves.py','test_narration_queue.py')
 def verify(root=ROOT):
     root=Path(root)
     missing=[str(root/(m+'.py')) for m in MODULES if not (root/(m+'.py')).is_file()]
-    missing += [str(root/f) for f in TESTS if not (root/f).is_file()]
+    missing += [str(root/f) for f in TESTS+PHASE_ONE_TESTS if not (root/f).is_file()]
     if missing:
         raise RuntimeError('Cannot build incomplete ACE Adventures 3: '+', '.join(missing))
     for module in MODULES:
