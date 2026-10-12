@@ -12,7 +12,8 @@ class AbilityEvolutionTests(unittest.TestCase):
             hero=game.character('Iris',24,'Mage',random.Random(3))
             hero['magic']=school
             hero['moves']=list(game.SPELLS[school])
-            game.award_experience(hero,1000)
+            game.award_experience(hero,10000)
+            for _ in range(5):game.award_experience(hero,10000)
             entries=spell_catalog.catalog(school)
             for level,tier in ((5,2),(12,3),(20,4)):
                 entry=next(e for e in entries if e['level']==level)
@@ -27,7 +28,8 @@ class AbilityEvolutionTests(unittest.TestCase):
                 hero=game.character('Aster',23,cls,random.Random(2))
                 hero['path']=path
                 hero['moves']=list(game.MOVES[path])
-                game.award_experience(hero,1000)
+                game.award_experience(hero,10000)
+            for _ in range(5):game.award_experience(hero,10000)
                 for level,tier in ((5,2),(12,3),(20,4)):
                     entry=next(e for e in technique_catalog.catalog(path) if e['level']==level)
                     cue=visual_mapping.cue_for(hero,{'action':'I use '+entry['name'],'degree':'Success'})
