@@ -1,186 +1,184 @@
-"""ACE Adventures III — self-contained Mac launch baseline.
-Full illustrated gameplay modules must be migrated before an official release.
-"""
-import json, queue, random, threading, urllib.request, tkinter as tk
+"""ACE Adventures 3 illustrated story-first native Tk interface."""
+import json,queue,threading,tkinter as tk
+from tkinter import messagebox
 from pathlib import Path
-from tkinter import ttk, messagebox
-
-HOME=Path.home()/"Library"/"Application Support"/"ACE Adventures 3"
-FILE=HOME/"campaigns.json"
-BG="#26302e"; PAPER="#ead5ac"; INK="#39291c"; GOLD="#a9874e"
-CLASSES={"Fighter":(24,5),"Rogue":(19,8),"Mage":(15,24),"Vessel":(21,16)}
-PLACES={"Square":("Briarhollow Square","The village bell rings without a bellringer. Elder Rowan waits beside a rain-soaked noticeboard."),
-"Tavern":("Lantern & Thistle","Mira the innkeeper polishes a glass. She has heard the bell every night."),
-"Well":("Old Well","The rope is cut. Symbols have been carved into the stone rim."),
-"Forest":("Ashwood Forest","The path vanishes beneath crooked trees. A guardian blocks the ruined arch.")}
-def load():
- try:
-  d=json.loads(FILE.read_text());return d if isinstance(d,list) else []
- except (FileNotFoundError,ValueError,OSError):return []
-def save(data):
- HOME.mkdir(parents=True,exist_ok=True)
- tmp=FILE.with_suffix(".tmp");tmp.write_text(json.dumps(data,indent=2));tmp.replace(FILE)
-def make(name,age,cls):
- hp,mp=CLASSES[cls]
- stats={k:random.randint(8,17) for k in ("STR","DEX","CON","INT","WIS","CHA")}
- return dict(name=name,age=int(age),cls=cls,race=random.choice(("Human","Elf","Dwarf","Orc","Gnome")),path=random.choice(("Warden","Scout","Shadow","Adept","Oracle")),hp=hp,maxhp=hp,mp=mp,maxmp=mp,stats=stats,items=["Travel Rations","Health Potion"],gold=20)
-def health(url,timeout=2):
- try:
-  with urllib.request.urlopen(url,timeout=timeout) as res:return json.load(res)
- except Exception:return None
-class Game(tk.Tk):
+import game,ai,story,art,ai_connections
+DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
+DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
+class App(tk.Tk):
  def __init__(self):
-  super().__init__();self.title("ACE Adventures III");self.geometry("1130x760");self.minsize(900,620);self.configure(bg=BG)
-  self.games=load();self.c=None;self.q=queue.Queue();self.active=0;self.status="";self.home();self.after(150,self.poll)
+  super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self._home();self.after(150,self._poll)
  def clear(self):
-  for x in self.winfo_children():x.destroy()
- def text(self,p,s,size=13,bg=PAPER,fg=INK):
-  return tk.Label(p,text=s,font=("Georgia",size),wraplength=670,justify="left",anchor="w",bg=bg,fg=fg)
- def button(self,p,s,cb):
-  return tk.Button(p,text=s,command=cb,bg="#6d5035",fg="#fff1d3",font=("Georgia",12),padx=12,pady=7)
+  for widget in self.winfo_children():widget.destroy()
+ def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
+  return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
+ def button(self,parent,text,fn,light=False):
+  return tk.Button(parent,text=text,command=fn,font=('Georgia',12,'bold'),bg=PARCH if light else WOOD,fg=INK if light else LIGHT,activebackground=BRASS,activeforeground=INK,relief='ridge',bd=3,highlightthickness=0,padx=12,pady=8,cursor='hand2')
  def page(self,title):
-  self.clear()
-  head=tk.Frame(self,bg="#172522");head.pack(fill="x")
-  self.text(head,"A.C.E. ADVENTURES III",21,"#172522","#e7d19c").pack(side="left",padx=20,pady=12)
-  self.text(head,title,13,"#172522","#d9c292").pack(side="left",padx=18)
-  self.button(head,"Chronicles",self.home).pack(side="right",padx=8)
-  self.button(head,"AI Connections",self.connections).pack(side="right",padx=8)
-  main=tk.Frame(self,bg=BG);main.pack(fill="both",expand=True,padx=17,pady=17);return main
- def panel(self,parent):
-  p=tk.Frame(parent,bg=PAPER,bd=4,relief="ridge");return p
- def home(self):
-  main=self.page("Campaign Library")
-  p=self.panel(main);p.pack(fill="both",expand=True)
-  self.text(p,"The Book of Unwritten Roads",27).pack(pady=25)
-  self.button(p,"Begin a new chronicle",self.new).pack(pady=12)
-  for i,c in enumerate(self.games):
-   self.button(p,c["title"]+" — "+str(len(c["heroes"]))+" adventurers",lambda i=i:self.open(i)).pack(fill="x",padx=100,pady=4)
- def new(self):
-  p=self.panel(self.page("New Campaign"));p.pack(fill="both",expand=True)
-  self.text(p,"Name the adventure",20).pack(pady=15)
-  name=tk.Entry(p,font=("Georgia",14));name.insert(0,"The Hollow Bell");name.pack(pady=7)
-  self.text(p,"Number of adventurers",14).pack()
-  players=tk.Spinbox(p,from_=1,to=8,width=5);players.pack(pady=8)
+  self.clear();bar=tk.Frame(self,bg='#28332f',height=72);bar.pack(fill='x')
+  self.label(bar,'A.C.E.   ADVENTURES III',22,LIGHT,'#28332f').pack(side='left',padx=20,pady=12)
+  self.label(bar,title.upper(),11,BRASS,'#28332f').pack(side='left',padx=14)
+  self.button(bar,'THE CHRONICLES',self._home).pack(side='right',padx=12)
+  self.button(bar,'AI CONNECTIONS',self._connections).pack(side='right',padx=5)
+ def card(self,parent,title=''):
+  outer=tk.Frame(parent,bg=WOOD,bd=3,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=3);inner.pack(fill='both',expand=True,padx=4,pady=4)
+  if title:self.label(inner,title.upper(),14,fg='#78512f').pack(anchor='w',padx=16,pady=(14,7))
+  return outer,inner
+ def _connections(self):
+  """Probe optional services off the UI thread; leave campaigns untouched."""
+  popup=tk.Toplevel(self);popup.title('AI Connections');popup.geometry('520x290');popup.configure(bg=WOOD)
+  outer,inside=self.card(popup,'Local AI Connections');outer.pack(fill='both',expand=True,padx=12,pady=12)
+  status=self.label(inside,'Checking Ollama and ComfyUI on this Mac...',13,wraplength=460)
+  status.pack(anchor='w',padx=12,pady=16)
+  self.label(inside,'Ollama: storytelling and action interpretation\nComfyUI: optional offline artwork generation (not live gameplay)',11,wraplength=450).pack(anchor='w',padx=12)
+  def worker():
+   result=ai_connections.all_statuses(timeout=2)
+   self.q.put(('services',(popup,status,result)))
+  threading.Thread(target=worker,daemon=True).start()
+ def _home(self):
+  self.c=None;self.page('The Book of Unwritten Roads')
+  body=tk.Frame(self,bg=DARK);body.pack(expand=True,fill='both',padx=18,pady=15)
+  left,inside=self.card(body,'Campaign Library');left.pack(side='left',fill='y',padx=(0,12))
+  self.button(inside,'✦  NEW CHRONICLE',self._new,True).pack(fill='x',padx=14,pady=9)
+  for c in game.load_all(DATA):self.button(inside,c['title'],lambda c=c:self._open(c),True).pack(fill='x',padx=12,pady=5)
+  right,content=self.card(body,'The Hollow Bell');right.pack(side='left',fill='both',expand=True)
+  cv=tk.Canvas(content,height=360,bg=DARK,highlightthickness=0);cv.pack(fill='x',padx=12,pady=12);cv.bind('<Configure>',lambda e:self._scene(cv,'square'))
+  self.label(content,'Beyond the last farms lies Briarhollow, where a bell rings without a bellringer.',20,wraplength=660).pack(anchor='w',padx=25,pady=15)
+  self.label(content,'Choose your companions. Follow the clues. Roll the dice when the world pushes back.',13,wraplength=660).pack(anchor='w',padx=25)
+ def _new(self):
+  self.page('New Chronicle');outer,f=self.card(self,'Begin a New Adventure');outer.pack(padx=90,pady=40,fill='x')
+  self.label(f,'Name your campaign',14).pack(pady=(10,3));name=tk.Entry(f,font=('Georgia',16));name.pack(fill='x',padx=45,pady=6)
+  self.label(f,'Number of adventurers (1–8)',14).pack(pady=8);count=tk.Spinbox(f,from_=1,to=8,font=('Georgia',14),width=6);count.pack()
   def create():
-   n=name.get().strip()
-   if not n:return
-   self.c=dict(title=n,players=int(players.get()),heroes=[],place="Square",stage=0,history=[],enemy=0,won=False)
-   self.games.append(self.c);self.persist();self.creation()
-  self.button(p,"Create Campaign",create).pack(pady=18)
- def persist(self):save(self.games)
- def open(self,i):
-  self.c=self.games[i];self.active=0
-  if len(self.c["heroes"])<self.c["players"]:self.creation()
-  else:self.world()
- def creation(self):
-  c=self.c;p=self.panel(self.page("Character Creation"));p.pack(fill="both",expand=True)
-  self.text(p,f"Adventurer {len(c['heroes'])+1} of {c['players']}",23).pack(pady=20)
-  name=tk.Entry(p,font=("Georgia",14));name.pack(pady=8);name.insert(0,"")
-  age=tk.Spinbox(p,from_=10,to=120,width=8);age.pack(pady=8)
-  chosen=tk.StringVar(value="Fighter")
-  for cls in CLASSES:tk.Radiobutton(p,text=cls,variable=chosen,value=cls,bg=PAPER,font=("Georgia",14)).pack()
+   try:self.c=game.new_campaign(name.get(),int(count.get()));game.save(DATA,self.c);self._show()
+   except ValueError as e:messagebox.showerror('Campaign',str(e))
+  self.button(f,'OPEN THE CHRONICLE',create).pack(pady=22)
+ def _open(self,c):self.c=c;story.ensure(self.c);self._show()
+ def _show(self):
+  if len(self.c['characters'])<self.c['players']:self._create_character()
+  else:self._adventure()
+ def _create_character(self):
+  self.page('The Fates · Character Creation');outer,f=self.card(self,f'Adventurer {len(self.c["characters"])+1} of {self.c["players"]}');outer.pack(expand=True,padx=55,pady=18,fill='both')
+  self.label(f,'You may choose your name, age and class. All other details are rolled once and are permanent.',13,wraplength=700).pack(padx=16,pady=10)
+  row=tk.Frame(f,bg=PARCH);row.pack(pady=10);self.label(row,'Name',14).grid(row=0,column=0,padx=15);name=tk.Entry(row,font=('Georgia',15));name.grid(row=0,column=1,padx=10)
+  self.label(row,'Age',14).grid(row=0,column=2,padx=15);age=tk.Spinbox(row,from_=10,to=120,width=6,font=('Georgia',14));age.grid(row=0,column=3)
+  self.label(f,'CHOOSE YOUR CALLING',18).pack(pady=12)
+  cls=tk.StringVar();grid=tk.Frame(f,bg=PARCH);grid.pack(pady=10)
+  for j,(kind,desc) in enumerate([('Fighter','Steel & Resolve'),('Rogue','Shadow & Precision'),('Mage','Arcane Knowledge'),('Vessel','Spirit & Balance')]):
+   area=tk.Frame(grid,bg='#bba278',highlightbackground=WOOD,highlightthickness=3);area.grid(row=0,column=j,padx=6)
+   cv=tk.Canvas(area,width=132,height=155,bg='#686456',highlightthickness=0);cv.pack(padx=5,pady=6);art.character(cv,18,20,kind,j+15,4)
+   self.button(area,kind,lambda kind=kind:cls.set(kind),True).pack(fill='x',padx=5)
+   self.label(area,desc,10,bg='#bba278').pack(pady=8)
+  chosen=self.label(f,'Select a class before binding your fate.',12);chosen.pack(pady=6);cls.trace_add('write',lambda *_:chosen.config(text='Selected: '+cls.get()))
   def roll():
-   if not name.get().strip():messagebox.showerror("Character","Choose a name.");return
-   h=make(name.get().strip(),age.get(),chosen.get());c["heroes"].append(h);self.persist()
-   messagebox.showinfo("The Fates Have Spoken",f"{h['name']} — {h['race']} {h['path']} {h['cls']}\nThis roll is permanent.")
-   if len(c["heroes"])==c["players"]:self.world()
-   else:self.creation()
-  self.button(p,"Commit permanent character",roll).pack(pady=12)
- def world(self):
-  c=self.c;p=self.page("Chapter I — The Hollow Bell")
-  left=self.panel(p);left.pack(side="left",fill="both",expand=True,padx=(0,12))
-  right=self.panel(p);right.pack(side="right",fill="y")
-  place=c.get("place","Square");title,desc=PLACES[place]
-  self.text(left,title,25).pack(anchor="w",padx=18,pady=16)
-  self.text(left,desc,16).pack(anchor="w",padx=18,pady=12)
-  if c.get("enemy",0)>0:self.text(left,f"Guardian health: {c['enemy']}",18).pack(pady=10)
-  text=tk.Text(left,height=10,bg="#f2e3c2",fg=INK,wrap="word",font=("Georgia",13))
-  text.pack(fill="both",expand=True,padx=16,pady=10)
-  for line in c.get("history",[])[-10:]:text.insert("end",line+"\n\n")
-  text.configure(state="disabled")
-  entry=tk.Entry(left,font=("Georgia",14));entry.pack(fill="x",padx=18,pady=9)
-  self.button(left,"Attempt your action (D20)",lambda:self.action(entry.get())).pack(anchor="e",padx=18,pady=6)
-  self.text(right,"Adventurer's Record",19).pack(padx=12,pady=10)
-  for i,h in enumerate(c["heroes"]):self.button(right,h["name"],lambda i=i:self.select(i)).pack(fill="x",padx=10,pady=3)
-  h=c["heroes"][self.active]
-  self.text(right,f"{h['race']} {h['path']} {h['cls']}\nHP {h['hp']}/{h['maxhp']} · Mana {h['mp']}",13).pack(padx=12,pady=10)
-  self.button(right,"Character Sheet",self.sheet).pack(padx=12,pady=5)
-  self.button(right,"Inventory",self.inventory).pack(padx=12,pady=5)
-  available={"Square":["Tavern"],"Tavern":["Square","Well"],"Well":["Tavern","Forest"],"Forest":["Well"]}[place]
-  for dest in available:
-   if dest=="Well" and c["stage"]<2:continue
-   if dest=="Forest" and c["stage"]<3:continue
-   self.button(left,"Travel to "+dest,lambda dest=dest:self.travel(dest)).pack(anchor="w",padx=18,pady=3)
-  if place=="Square" and c["stage"]==0:self.button(left,"Speak to Elder Rowan",lambda:self.story(1,"Elder Rowan asks you to question Mira at the tavern.")).pack(anchor="w",padx=18)
-  if place=="Tavern" and c["stage"]==1:self.button(left,"Question Mira",lambda:self.story(2,"Mira points you towards the old well.")).pack(anchor="w",padx=18)
-  if place=="Well" and c["stage"]==2:self.button(left,"Investigate the carved runes",lambda:self.story(3,"Tracks lead from the well into Ashwood.")).pack(anchor="w",padx=18)
-  if place=="Forest" and c["stage"]==3 and c["enemy"]==0 and not c["won"]:self.button(left,"Approach the ruined arch",self.encounter).pack(anchor="w",padx=18)
-  if place=="Square" and c["won"]:self.text(left,"Quest completed — the Hollow Bell falls silent.",18).pack(pady=15)
- def story(self,stage,line):
-  self.c["stage"]=stage;self.c["history"].append(line);self.persist();self.world();self.narrate(s,line)
- def travel(self,place):
-  self.c["place"]=place;self.persist();self.world()
- def encounter(self):
-  self.c["enemy"]=18;self.c["history"].append("A Hollow Guardian bars the path. Combat begins.");self.persist();self.world()
- def action(self,s):
-  s=s.strip()
-  if not s:return
-  c=self.c;h=c["heroes"][self.active];stat="CHA" if any(w in s.lower() for w in ("convince","talk","persuade")) else "DEX" if any(w in s.lower() for w in ("hide","dodge","sneak")) else "STR"
-  dice=random.randint(1,20);total=dice+(h["stats"][stat]-10)//2;success=dice==20 or (dice!=1 and total>=12)
-  line=f"{h['name']}: {s}\nD20 {dice} + {stat} modifier = {total}: {'success' if success else 'failure'}."
-  if c["place"]=="Forest" and c["enemy"]>0:
-   if success:c["enemy"]=max(0,c["enemy"]-random.randint(3,7))
-   if c["enemy"]==0:c["won"]=True;c["stage"]=4;line+=" Guardian defeated. Return to town."
-   else:h["hp"]=max(0,h["hp"]-random.randint(1,3))
-  c["history"].append(line);self.persist();self.world()
- def narrate(self,player_action,verified_outcome):
-  """Local Ollama adds prose, never changes dice, HP, gold or quest state."""
-  campaign=self.c
-  def worker():
-   tags=health("http://127.0.0.1:11434/api/tags")
-   if not isinstance(tags,dict):return
-   models=[x.get("name","") for x in tags.get("models",[]) if isinstance(x,dict)]
-   model=next((x for x in models if x.startswith("qwen3.5:4b")),models[0] if models else None)
-   if not model:return
-   prompt=("You are a grounded tabletop fantasy Dungeon Master. Write 2-3 atmospheric sentences. "
-           "Never alter the outcome of the verified dice, never invent obtained equipment, "
-           "XP, HP changes, or quest completion. Treat this as settled. "
-           "Setting: "+str(campaign.get("place","Square"))+
-           "\\nRecent events: "+str(campaign.get("history",[])[-4:])+
-           "\\nPlayer action: "+player_action+"\\nVerified outcome: "+verified_outcome)
-   body=json.dumps({"model":model,"prompt":prompt,"stream":False,"options":{"num_predict":130}}).encode()
-   req=urllib.request.Request("http://127.0.0.1:11434/api/generate",data=body,headers={"Content-Type":"application/json"})
    try:
-    with urllib.request.urlopen(req,timeout=45) as response:reply=json.load(response).get("response","").strip()
-    if reply:self.q.put(("story",campaign,reply[:900]))
-   except Exception:pass
-  threading.Thread(target=worker,daemon=True).start()
- def select(self,i):self.active=i;self.world()
- def sheet(self):
-  h=self.c["heroes"][self.active]
-  messagebox.showinfo(h["name"]+" — Record","\n".join(f"{k}: {v}" for k,v in h["stats"].items()))
- def inventory(self):
-  h=self.c["heroes"][self.active];messagebox.showinfo("Inventory","\n".join(h["items"])+f"\nGold: {h['gold']}")
- def connections(self):
-  dialog=tk.Toplevel(self);dialog.title("Local AI Connections");dialog.geometry("540x250")
-  label=tk.Label(dialog,text="Checking local Ollama and ComfyUI…",wraplength=490,font=("Georgia",13));label.pack(padx=25,pady=25)
+    if not cls.get():raise ValueError('Select a class first.')
+    if not messagebox.askyesno('Permanent roll','Generate this character permanently? There are no rerolls.'):return
+    hero=game.character(name.get(),int(age.get()),cls.get());game.add_hero(self.c,hero);game.save(DATA,self.c);self._show()
+   except ValueError as e:messagebox.showerror('Character',str(e))
+  self.button(f,'BIND MY FATE  ·  PERMANENT ROLL',roll).pack(pady=15)
+ def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
+ def _scene(self,cv,place):
+  if not cv.winfo_exists():return
+  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+ def _switch(self,i):self.c['active']=i;game.save(DATA,self.c);self._adventure()
+ def _adventure(self):
+  self.page(story.journal(self.c));top=tk.Frame(self,bg=DARK);top.pack(fill='x',padx=13,pady=5)
+  for i,h in enumerate(self.c['characters']):self.button(top,('◆ ' if i==self.c['active'] else '')+h['name'],lambda i=i:self._switch(i)).pack(side='left',padx=4)
+  self.button(top,'SAVE & EXIT',self._exit).pack(side='right',padx=4)
+  if not self.c['started']:
+   outer,inside=self.card(self,'The party has gathered');outer.pack(fill='both',expand=True,padx=80,pady=25)
+   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['race']+' '+hero['path'],16).pack(padx=18,pady=10)
+   self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25);return
+  body=tk.Frame(self,bg=DARK);body.pack(fill='both',expand=True,padx=14,pady=8)
+  left=tk.Frame(body,bg=DARK);left.pack(side='left',fill='both',expand=True,padx=(0,10));right=tk.Frame(body,bg=DARK,width=340);right.pack(side='right',fill='y');right.pack_propagate(False)
+  outer,f=self.card(left,'Ashwood Encounter' if self.c.get('enemy') else story.PLACES[self.c['location']][0]);outer.pack(fill='both',expand=True)
+  cv=tk.Canvas(f,height=300,bg=DARK,highlightthickness=0);cv.pack(fill='x',padx=12,pady=12);cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
+  self.label(f,story.journal(self.c),17,wraplength=660).pack(anchor='w',padx=18,pady=7)
+  history=self.c['history'][-3:] or ['Your party enters Briarhollow. A bell tolls, although the tower stands empty.']
+  self.label(f,'\n\n'.join(history),13,wraplength=660).pack(anchor='w',padx=18,pady=8)
+  actions=tk.Frame(f,bg=PARCH);actions.pack(fill='x',padx=15,pady=10)
+  for i,(title,key) in enumerate(story.options(self.c)):
+   self.button(actions,title,lambda key=key:self._choose(key),True).grid(row=i//2,column=i%2,padx=4,pady=5,sticky='ew');actions.grid_columnconfigure(i%2,weight=1)
+  self.label(f,'Describe another action to your Dungeon Master',12).pack(anchor='w',padx=15)
+  row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=12,pady=(4,13));entry=tk.Entry(row,font=('Georgia',13));entry.pack(side='left',fill='x',expand=True,padx=4)
+  self.button(row,'ROLL D20',lambda:self._free(entry.get())).pack(side='right')
+  self._sidebar(right)
+ def _sidebar(self,parent):
+  h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
+  cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);art.character(cv,78,28,h['class'],h['sprite_seed'],4)
+  self.label(f,h['name'],20).pack(padx=14)
+  self.label(f,h['race']+' · '+h['path']+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+  self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
+  row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
+  for name in ['Record','Pack','Abilities','Journal']:
+   self.button(row,name,lambda x=name:self._panel(x),True).pack(side='left',expand=True,fill='x',padx=2)
+  txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
+  if self.panel=='Record':
+   for k,v in h['stats'].items():self.label(txt,f'{k}      {v:>2}     ({(v-10)//2:+d})',13).pack(anchor='w',pady=2)
+   self.label(txt,'Magic: '+h['magic'],12).pack(anchor='w',pady=6)
+  elif self.panel=='Pack':
+   for thing in h['inventory']:
+    line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+    self.label(line,'◇  '+thing,12).pack(side='left')
+    if thing in ('Health Potion','Healing Draught'):
+     self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
+   self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
+  elif self.panel=='Abilities':
+   for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
+  else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+ def _consume(self,item):
+  try:
+   game.use_item(self.c,item)
+   game.save(DATA,self.c)
+   self._adventure()
+  except ValueError as e:messagebox.showwarning('Inventory',str(e))
+ def _panel(self,name):self.panel=name;self._adventure()
+ def _choose(self,key):
+  try:
+   result=story.select(self.c,key);game.save(DATA,self.c)
+   if key in ('attack','guard','negotiate'):self._narrate(result)
+   self._adventure()
+  except ValueError as e:messagebox.showwarning('Adventure',str(e))
+ def _free(self,text):
+  text=text.strip()
+  if not text:return
+  try:
+   had_enemy=bool(self.c.get('enemy'))
+   result=game.action(self.c,text);game.save(DATA,self.c)
+   if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
+    story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
+   self._adventure();self._roll_display(result);self._narrate(result['result'])
+  except ValueError as e:messagebox.showwarning('Action',str(e))
+ def _roll_display(self,result):
+  win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
+  outer,f=self.card(win,'The Twenty-Sided Die');outer.pack(fill='both',expand=True,padx=16,pady=14)
+  self.label(f,str(result['roll']),68).pack(pady=8)
+  self.label(f,result['degree'],20).pack(pady=4)
+  self.label(f,f'{result["roll"]} {result["modifier"]:+d} = {result["total"]}   ·   DC {result["dc"]}',13).pack(pady=5)
+  self.button(f,'CONTINUE',win.destroy).pack(pady=10)
+ def _narrate(self,resolved):
+  if self.busy:return
+  self.busy=True;identity=self.c['id'];snapshot=json.loads(json.dumps(self.c))
   def worker():
-   oll=health("http://127.0.0.1:11434/api/tags")
-   comfy=health("http://127.0.0.1:8188/system_stats")
-   names=[x.get("name","") for x in oll.get("models",[])] if isinstance(oll,dict) else []
-   self.q.put((label,"Ollama: "+(", ".join(names) if names else "not responding or no models")+"\nComfyUI: "+("online" if comfy else "offline")+"\nAI storytelling requires Ollama configuration."))
+   try:message=ai.narrate(snapshot,resolved)
+   except Exception:message='The Dungeon Master is unavailable. Your dice results and campaign remain saved.'
+   self.q.put(('story',(identity,message)))
   threading.Thread(target=worker,daemon=True).start()
- def poll(self):
+ def _poll(self):
   try:
    while True:
-    item=self.q.get_nowait()
-    if len(item)==3 and item[0]=="story":
-     _,campaign,msg=item
-     if campaign is self.c:
-      campaign["history"].append("Dungeon Master: "+msg);self.persist();self.world()
-    else:
-     widget,msg=item
-     if widget.winfo_exists():widget.config(text=msg)
+    kind,value=self.q.get_nowait()
+    if kind=='services':
+     popup,label,result=value
+     if popup.winfo_exists():
+      label.config(text='\n'.join(k.title()+': '+v['message'] for k,v in result.items()))
+    if kind=='story':
+     self.busy=False
+     if self.c and self.c['id']==value[0]:
+      self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
   except queue.Empty:pass
-  self.after(150,self.poll)
-if __name__=="__main__":Game().mainloop()
+  self.after(150,self._poll)
+ def _exit(self):game.save(DATA,self.c);self._home()
+if __name__=='__main__':App().mainloop()
