@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story,dice_ledger,merchant,equipment,party_commands,loot_system,town_services
+import game,story,dice_ledger,merchant,equipment,party_commands,loot_system,town_services,training_scrolls
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -91,6 +91,12 @@ def perform(c,text,rng=None):
         name=next((name for name in town_services.PEOPLE if name.casefold()==npc.group(1).strip()),npc.group(1))
         msg=town_services.talk(c,name)
         return {'roll_required':False,'result':msg,'action':text,'choice':'townsfolk'}
+    scroll=re.fullmatch(r'(?:i\s+)?(?:study|read|learn from)\s+(.+?)[.!]?',lower)
+    if scroll:
+        item=next((name for name in c['characters'][c['active']]['inventory'] if name.casefold()==scroll.group(1).strip()),None)
+        if not item:raise ValueError('You do not own that scroll.')
+        msg=training_scrolls.study(c,item)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'scroll'}
     loot_equip=re.fullmatch(r'(?:i\s+)?(?:equip|wear)\s+(.+?)[.!]?',lower)
     if loot_equip:
         item=next((name for name in loot_system.ITEMS if name.casefold()==loot_equip.group(1).strip()),None)
