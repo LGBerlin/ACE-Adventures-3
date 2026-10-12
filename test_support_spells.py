@@ -26,7 +26,7 @@ class SupportSpellEffects(unittest.TestCase):
   self.assertLessEqual(h["mana"],h["max_mana"])
  def test_regular_support_spell_heals_at_level_five(self):
   h=self.hero
-  game.award_experience(h,700)
+  game.award_experience(h,1200)
   self.assertGreaterEqual(h["level"],5)
   h["hp"]=h["max_hp"]-8
   result=game.action(self.c,"I cast Mending Light",self.good)
