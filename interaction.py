@@ -58,7 +58,7 @@ def perform(c,text,rng=None):
         if item:
             msg=game.use_item(c,item,rng=rng)
             return {'roll_required':False,'result':msg,'action':text,'choice':'use_item'}
-        if re.match(r'^(?:i\\s+)?(?:drink|consume)\\b',lower):
+        if re.match(r'^(?:i\s+)?(?:drink|consume)\b',lower):
             raise ValueError('That is not a usable consumable.')
     crafting=re.fullmatch(r'(?:i\s+)?enchant\s+(.+?)[.!]?',lower)
     if crafting:
