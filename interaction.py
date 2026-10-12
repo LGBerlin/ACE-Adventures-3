@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story,dice_ledger
+import game,story,dice_ledger,merchant
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -39,17 +39,43 @@ def interpret_simple(c,text):
     return None
 
 def perform(c,text,rng=None):
+    """Resolve player intent before using dice; all mutations remain rules-driven."""
     text=text.strip()
     if not text:raise ValueError('Describe what you want to do.')
     if not c.get('started'):raise ValueError('Start the campaign first.')
+    lower=' '.join(text.casefold().split())
+    # Combat always takes precedence. No travel, merchant or free social
+    # interaction can silently bypass an active enemy turn.
+    if c.get('enemy'):
+        result=game.action(c,text,rng)
+        result['roll_required']=True
+        dice_ledger.record(c,result,text)
+        return result
     choice=interpret_simple(c,text)
     if choice is not None:
         outcome=story.select(c,choice)
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
-    if c.get('enemy') is None and re.fullmatch(r'(?:hello|hi|hey|thank you|thanks|look around|look at the scenery|wait|rest|sit down|listen)',text,re.I):
-        msg='You '+text.lower().rstrip('.')+'.'
+    # Buy/sell are deterministic, and both the merchant and available funds
+    # are checked by the shop engine, not the text interpreter or the AI.
+    trade=re.fullmatch(r'(?:i\\s+)?(?:want to |would like to |please )?(buy|purchase|sell)\\s+(?:a |an |the |some )?(.+?)[.!]?',lower)
+    if trade:
+        verb,name=trade.groups()
+        item=next((item for item in merchant.CATALOG if item.casefold()==name.strip()),None)
+        if item is None:raise ValueError('The merchant does not trade that item.')
+        msg=(merchant.sell if verb=='sell' else merchant.buy)(c,item)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'trade'}
+    # Mundane observations, listening, and rest are not skill checks and
+    # never provide free HP, mana, XP or equipment.
+    mundane=re.fullmatch(r'(?:i\\s+)?(?:look around|look at the scenery|wait|rest|sit down|listen|hello|hi|hey|thank you|thanks|examine my equipment|check my inventory|open my journal|view the map|study the map)[.!]?',lower)
+    if mundane:
+        msg='You '+lower.removeprefix('i ').rstrip('.!')+'.'
         c['history'].append(msg);c['turn']+=1
         return {'roll_required':False,'result':msg,'action':text}
+    # Explicit dialogue with a non-present character is not a remote
+    # charisma roll; ask the player to travel to them instead.
+    if re.search(r'\\b(?:talk|speak|ask|question|converse|chat)\\b',lower):
+        if re.search(r'\\b(?:sera|elder|mira|innkeeper|yarrow|herbalist)\\b',lower):
+            raise ValueError('You must be with that person to speak to them.')
     result=game.action(c,text,rng)
     result['roll_required']=True
     dice_ledger.record(c,result,text)
