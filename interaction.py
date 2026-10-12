@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story,dice_ledger,merchant
+import game,story,dice_ledger,merchant,equipment
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -57,6 +57,16 @@ def perform(c,text,rng=None):
     if choice is not None:
         outcome=story.select(c,choice)
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
+    gear=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(equip|wield|unequip|sheathe)\s*(?:my |the |a |an )?(.*?)[.!]?',lower)
+    if gear:
+        verb,name=gear.groups()
+        if verb in ('unequip','sheathe'):
+            msg=equipment.unequip(c)
+        else:
+            item=next((item for item in equipment.WEAPONS if item.casefold()==name.strip()),None)
+            if item is None:raise ValueError('Unknown weapon.')
+            msg=equipment.equip(c,item)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'equipment'}
     # Buy/sell are deterministic, and both the merchant and available funds
     # are checked by the shop engine, not the text interpreter or the AI.
     trade=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(buy|purchase|sell)\s+(?:a |an |the |some )?(.+?)[.!]?',lower)
