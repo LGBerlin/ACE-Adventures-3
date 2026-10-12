@@ -29,7 +29,7 @@ class AbilityEvolutionTests(unittest.TestCase):
                 hero['path']=path
                 hero['moves']=list(game.MOVES[path])
                 game.award_experience(hero,10000)
-            for _ in range(5):game.award_experience(hero,10000)
+                for _ in range(5):game.award_experience(hero,10000)
                 for level,tier in ((5,2),(12,3),(20,4)):
                     entry=next(e for e in technique_catalog.catalog(path) if e['level']==level)
                     cue=visual_mapping.cue_for(hero,{'action':'I use '+entry['name'],'degree':'Success'})
