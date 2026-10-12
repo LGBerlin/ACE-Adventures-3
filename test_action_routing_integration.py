@@ -55,6 +55,26 @@ class ActionRoutingIntegrationTests(unittest.TestCase):
         self.assertFalse(result["roll_required"])
         self.assertEqual(hero["hp"],hero["max_hp"])
         self.assertNotIn("Healing Draught",hero["inventory"])
+    def test_typed_combat_potion_uses_turn_without_dice(self):
+        hero=self.c["characters"][0]
+        hero["inventory"].append("Healing Draught")
+        hero["hp"]=hero["max_hp"]-9
+        self.c["enemy"]={"name":"Wolf","hp":15,"ac":12}
+        class FixedRng:
+            def randint(self,a,b):return 3
+        before=self.c["turn"]
+        result=interaction.perform(self.c,"drink Healing Draught",FixedRng())
+        self.assertFalse(result["roll_required"])
+        self.assertEqual(hero["hp"],hero["max_hp"]-3)
+        self.assertNotIn("Healing Draught",hero["inventory"])
+        self.assertEqual(self.c["turn"],before+1)
+        self.assertEqual(self.c.get("dice_history",[]),[])
+    def test_unowned_combat_potion_does_not_consume_turn(self):
+        self.c["enemy"]={"name":"Wolf","hp":15,"ac":12}
+        before=self.c["turn"]
+        with self.assertRaises(ValueError):
+            interaction.perform(self.c,"drink Healing Draught")
+        self.assertEqual(self.c["turn"],before)
     def test_unowned_potion_cannot_be_conjured(self):
         hero=self.c["characters"][0]
         hero["hp"]-=4
