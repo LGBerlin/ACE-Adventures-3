@@ -70,6 +70,10 @@ def perform(c,text,rng=None):
         if not name:raise ValueError('Unknown guild job.')
         msg=town_services.accept(c,name)
         return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
+    if lower in ('quest status','show quests','check quests','what are my quests'):
+        entries=town_services.quest_status(c)
+        msg='Active quests ('+str(len(entries))+'/2): '+('; '.join(e['name']+(' — '+e['objective'] if e.get('objective') else '') for e in entries) or 'none')
+        return {'roll_required':False,'result':msg,'action':text,'choice':'quest_status'}
     if lower in ('abandon guild job','cancel guild quest','abandon quest'):
         msg=town_services.abandon(c)
         return {'roll_required':False,'result':msg,'action':text,'choice':'guild'}
