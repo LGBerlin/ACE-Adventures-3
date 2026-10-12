@@ -45,6 +45,11 @@ def perform(c,text,rng=None,intent=None):
     if not c.get('started'):raise ValueError('Start the campaign first.')
     hero=c['characters'][c['active']]
     if hero['hp']<=0:raise ValueError('This character is incapacitated.')
+    # Known Support spells are actual utility actions, not fake weapon attacks.
+    if hero.get('class')=='Mage' and hero.get('magic')=='Support':
+        for spell in ('Healing Wave','Protective Aura'):
+            if spell in hero.get('moves',[]) and re.search(r'(?<!\\w)'+re.escape(spell.lower())+r'(?!\\w)',text.lower()):
+                return {'roll_required':False,'result':game.cast_utility(c,spell,rng),'action':text}
     choice=interpret_simple(c,text)
     if choice is not None:
         outcome=story.select(c,choice)
