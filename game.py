@@ -132,6 +132,9 @@ def action(c,text,rng=None):
     sneak=any(x in t for x in ['sneak','hide','escape','dodge'])
     stat='CHA' if social else 'INT' if hero['class']=='Mage' and known else 'DEX' if sneak or hero['class']=='Rogue' and attack else 'STR' if attack else 'WIS'
     modifier=(hero['stats'][stat]-10)//2
+    if attack:
+        import equipment
+        modifier+=equipment.attack_bonus(hero)
     dc=c['enemy']['ac'] if attack else 13
     roll=rng.randint(1,20);total=roll+modifier
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
