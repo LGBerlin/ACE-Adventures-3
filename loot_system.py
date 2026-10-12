@@ -20,6 +20,7 @@ def equip(c,item):
  if not spec or item not in h["inventory"]:raise ValueError("Item not owned or cannot be equipped.")
  if h["class"] not in spec["classes"]:raise ValueError("Your class cannot equip that item.")
  slots=h.setdefault("gear_slots",{})
+ if spec["kind"]=="weapon":h.pop("equipped_weapon",None)
  slots[spec["kind"]]=item
  c["history"].append(h["name"]+" equips "+item+".")
  c["turn"]+=1
