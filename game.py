@@ -204,6 +204,8 @@ def action(c,text,rng=None):
         for ability in all_named:
             if ability not in hero['moves'] and re.search(r'(?<!\w)'+re.escape(ability.lower())+r'(?!\w)',t):
                 raise ValueError('That spell or technique is not available to this character.')
+    if re.match(r'^(?:i\s+)?(?:cast|invoke)\b',t) and not known:
+        raise ValueError('This character has not learned that spell.')
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
     import ability_effects
