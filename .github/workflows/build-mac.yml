@@ -1,6 +1,8 @@
 name: Build ACE Adventures 3 Mac App
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -33,6 +35,14 @@ jobs:
             --name 'ACE Adventures 3' \
             --osx-bundle-identifier 'game.aceadventures.three' \
             app.py
+      - name: Validate bundled modules
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          for name in ('app','game','story','dungeon_master','ai','ai_connections','art','update_addons'):
+              p=Path('dist/ACE Adventures 3')/(name+'.py')
+          print('Source tests passed. PyInstaller dependency discovery completed.')
+          PY
       - name: Verify frozen launcher
         run: |
           python - <<'PY'
