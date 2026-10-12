@@ -352,8 +352,14 @@ def _valid_campaign(data):
 def save(root,c):
     import os, shutil, tempfile
     if not _valid_campaign(c):raise ValueError('Invalid campaign state; refusing to overwrite save.')
-    target=Path(root)/'campaigns';target.mkdir(parents=True,exist_ok=True)
+    root=Path(root)
+    target=root/'campaigns'
+    if root.is_symlink() or target.is_symlink():
+        raise ValueError('Refusing symbolic-link save storage.')
+    target.mkdir(parents=True,exist_ok=True)
     p=target/(c['id']+'.json');backup=p.with_suffix('.bak')
+    if p.is_symlink() or backup.is_symlink():
+        raise ValueError('Refusing symbolic-link save files.')
     raw=json.dumps(c,indent=2,ensure_ascii=False)
     if len(raw.encode('utf-8'))>5_000_000:raise ValueError('Campaign save exceeds limit.')
     # Back up only a readable save; a damaged file must never replace a good backup.
@@ -372,10 +378,11 @@ def save(root,c):
 
 def load_all(root):
     d=Path(root)/'campaigns';out=[]
-    if not d.exists():return out
+    if d.is_symlink() or not d.exists():return out
     for p in sorted(d.glob('*.json')):
         for candidate in (p,p.with_suffix('.bak')):
             try:
+                if candidate.is_symlink():continue
                 if candidate.stat().st_size>5_000_000:continue
                 data=json.loads(candidate.read_text(encoding='utf-8'))
                 if _valid_campaign(data) and p.stem==data['id']:
