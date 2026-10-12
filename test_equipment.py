@@ -30,6 +30,21 @@ class EquipmentTests(unittest.TestCase):
     def test_battle_blocks_switching_equipment(self):
         self.c["enemy"]={"name":"Wolf","hp":15,"ac":12}
         with self.assertRaises(ValueError):equipment.equip(self.c,"Iron Sword")
+    def test_equipped_weapon_increases_attack_modifier(self):
+        import interaction
+        equipment.equip(self.c,"Iron Sword")
+        game.encounter(self.c,random.Random(3))
+        result=interaction.perform(self.c,"I attack the enemy",random.Random(1))
+        baseline=(self.h["stats"]["STR"]-10)//2
+        self.assertEqual(result["modifier"],baseline+1)
+    def test_typed_equipment_never_rolls(self):
+        import interaction
+        result=interaction.perform(self.c,"equip Iron Sword")
+        self.assertFalse(result["roll_required"])
+        self.assertEqual(equipment.equipped(self.h),"Iron Sword")
+        result=interaction.perform(self.c,"unequip")
+        self.assertFalse(result["roll_required"])
+        self.assertIsNone(equipment.equipped(self.h))
     def test_old_campaign_has_no_assumed_bonus(self):
         self.assertIsNone(equipment.equipped(self.h))
         self.assertEqual(equipment.attack_bonus(self.h),0)
