@@ -152,7 +152,24 @@ def action(c,text,rng=None):
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
     hero['mana']-=cost
     outcome=[]
-    if attack:
+    support_spell=known in ('Healing Wave','Restoration Prayer','Mana Boost') and hero.get('magic')=='Support'
+    if support_spell:
+        if degree in ('Success','Exceptional Success','Critical Success'):
+            if known=='Mana Boost':
+                restored=min(hero['max_mana']-hero['mana'],4+hero['level'])
+                hero['mana']+=restored
+                outcome.append(f'{restored} mana restored.')
+            else:
+                restored=min(hero['max_hp']-hero['hp'],5+hero['level'])
+                hero['hp']+=restored
+                outcome.append(f'{restored} HP restored.')
+        else:
+            outcome.append('The support spell fails to take hold.')
+        if c.get('enemy'):
+            retaliation=rng.randint(1,4)
+            hero['hp']=max(0,hero['hp']-retaliation)
+            outcome.append(f'Enemy retaliates for {retaliation} HP.')
+    elif attack:
         if degree in ('Success','Exceptional Success','Critical Success'):
             dmg=rng.randint(1,6)+max(0,modifier)
             if roll==20:dmg*=2
