@@ -84,7 +84,9 @@ def active_quests(c):
  import story
  quests=[]
  if c.get("started") and not c.get("quest",{}).get("completed",False):
-  quests.append({"name":"The Hollow Bell","kind":"main","stage":c.get("quest",{}).get("stage",0)})
+  stage=c.get("quest",{}).get("stage",0)
+  stage=max(0,min(len(story.STAGES)-1,stage)) if isinstance(stage,int) else 0
+  quests.append({"name":"The Hollow Bell","kind":"main","stage":stage,"objective":story.STAGES[stage]})
  if c.get("guild_job"):
   quests.append({"name":c["guild_job"]["name"],"kind":"guild"})
  return quests[:2]
