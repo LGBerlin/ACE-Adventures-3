@@ -15,7 +15,7 @@ PEOPLE={
 JOBS={
  "Supply Run":{"goal":"market","reward_gold":6,"reward_xp":8},
  "Tavern Errand":{"goal":"tavern","reward_gold":5,"reward_xp":8},
- "Village Patrol":{"goal":"square","reward_gold":7,"reward_xp":10},
+ "Village Patrol":{"goal":"tavern","reward_gold":7,"reward_xp":10},
 }
 def talk(c,name):
  if not c.get("started") or c.get("enemy"):raise ValueError("Conversation is unavailable.")
