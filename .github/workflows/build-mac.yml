@@ -29,7 +29,7 @@ jobs:
       - name: Test and compile
         run: |
           python -m compileall -q .
-          python -m unittest discover -v
+          python run_mac_tests.py
       - name: Verify approved visual library coverage and provenance (stable only)
         if: github.event_name == 'workflow_dispatch' && inputs.release_tier == 'stable'
         run: python verify_release_assets.py 'assets/approved sprites'
