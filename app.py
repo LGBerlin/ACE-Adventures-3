@@ -354,6 +354,9 @@ class App(tk.Tk):
   except ValueError as e:messagebox.showwarning('Inventory',str(e))
  def _panel(self,name):self.panel=name;self._adventure()
  def _choose(self,key):
+  if key in ('attack','guard','negotiate'):
+   self._free({'attack':'I attack the enemy','guard':'I guard','negotiate':'I negotiate'}[key])
+   return
   try:
    result=story.select(self.c,key);self.last_visual_cue=None;self.animation_director.clear();game.save(DATA,self.c)
    if key in ('attack','guard','negotiate'):self._narrate(result)
@@ -374,8 +377,6 @@ class App(tk.Tk):
     self.last_visual_cue=None
     self.animation_director.clear()
    game.save(DATA,self.c)
-   if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
-    story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
    if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
    self._adventure()
    if result.get('choice')=='enchant':self._enchant_wheel()
