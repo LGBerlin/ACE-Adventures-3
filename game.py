@@ -103,6 +103,45 @@ def use_item(c,item,hero_index=None):
     c['turn']+=1
     return message
 
+def _apply_incoming(hero,raw):
+    """Consume the next-attack ward, without allowing persistent free immunity."""
+    ward=max(0,int(hero.setdefault('statuses',{}).pop('ward',0)))
+    actual=max(0,raw-ward)
+    hero['hp']=max(0,hero['hp']-actual)
+    return actual
+
+def cast_utility(c,spell,rng=None):
+    """Resolve deterministic support magic without inventing an unnecessary D20."""
+    rng=rng or random.Random()
+    if not c.get('started'):raise ValueError('Start the adventure first.')
+    hero=c['characters'][c['active']]
+    if hero.get('class')!='Mage' or hero.get('magic')!='Support' or spell not in hero['moves']:
+        raise ValueError('You have not learned that support spell.')
+    if hero['hp']<=0:raise ValueError('An incapacitated character cannot cast.')
+    if spell not in ('Healing Wave','Protective Aura'):
+        raise ValueError('That spell requires a different resolution.')
+    if hero['mana']<4:raise ValueError('Not enough mana.')
+    if spell=='Healing Wave' and hero['hp']>=hero['max_hp']:
+        raise ValueError('Already at full health.')
+    if spell=='Protective Aura' and hero.setdefault('statuses',{}).get('ward',0)>=2:
+        raise ValueError('Your protective aura is already active.')
+    hero['mana']-=4
+    if spell=='Healing Wave':
+        amount=min(6,hero['max_hp']-hero['hp'])
+        hero['hp']+=amount
+        effect=f'Healing Wave restores {amount} HP.'
+    else:
+        hero.setdefault('statuses',{})['ward']=2
+        effect='Protective Aura absorbs up to 2 damage from the next attack.'
+    if c.get('enemy'):
+        incoming=rng.randint(1,4)
+        actual=_apply_incoming(hero,incoming)
+        effect+=f' The enemy strikes for {actual} HP.'
+    c['turn']+=1
+    message=hero['name']+' casts '+spell+'. '+effect
+    c['history'].append(message)
+    return message
+
 def action(c,text,rng=None):
     rng=rng or random.Random();text=text.strip()
     if not c['started']:raise ValueError('Start the campaign first.')
@@ -142,16 +181,19 @@ def action(c,text,rng=None):
             dmg=rng.randint(1,6)+max(0,modifier)
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
+            if known=='Blood Drain' and hero.get('magic')=='Blood':
+                restored=min(dmg//2,hero['max_hp']-hero['hp'])
+                hero['hp']+=restored;outcome.append(f'Blood Drain restores {restored} HP.')
         if c['enemy']['hp']==0:
             outcome.append('Enemy defeated, +10 XP, +8 gold.');new_spells=award_experience(hero,10);hero['gold']+=8;c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
-            dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
+            dmg=_apply_incoming(hero,rng.randint(1,4));outcome.append(f'Enemy retaliates for {dmg} HP.')
     elif defensive:
         incoming=rng.randint(1,4)
         reduction=2 if total>=dc else 1
         damage=max(0,incoming-reduction)
-        hero['hp']=max(0,hero['hp']-damage)
+        damage=_apply_incoming(hero,damage)
         outcome.append(f'Guard stance reduces an incoming {incoming} damage to {damage}.')
     elif 'smoke' in t or 'cover' in t:
         if known and hero['magic']=='Fire' and any(x in t for x in ['leaves','grass','wood']) and total>=dc:
@@ -164,7 +206,7 @@ def action(c,text,rng=None):
         if c.get('enemy'):
             guarded=any(re.search(r'(?<!\w)'+word+r'(?!\w)',t) for word in ('guard','defend','block','shield','dodge')) and total>=dc
             retaliation=max(0,rng.randint(1,4)-(2 if guarded else 0))
-            hero['hp']=max(0,hero['hp']-retaliation)
+            retaliation=_apply_incoming(hero,retaliation)
             outcome.append(f'Enemy retaliates for {retaliation} HP.' if retaliation else 'Your guard prevents the counterattack.')
     result=f'D20 {roll} {modifier:+d} = {total}, DC {dc}: {degree}. '+' '.join(outcome)
     c['turn']+=1;c['history'].append(hero['name']+': '+text+'\n'+result)
