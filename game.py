@@ -178,6 +178,9 @@ def action(c,text,rng=None):
             outcome.append(f'Enemy retaliates for {retaliation} HP.' if retaliation else 'Your guard prevents the counterattack.')
     result=f'D20 {roll} {modifier:+d} = {total}, DC {dc}: {degree}. '+' '.join(outcome)
     c['turn']+=1;c['history'].append(hero['name']+': '+text+'\n'+result)
+    if c.get('enemy') or attack or defensive:
+        import combat_log
+        combat_log.append(c,actor=hero['name'],kind='action',description=result,hp=hero['hp'])
     return {'roll':roll,'modifier':modifier,'total':total,'dc':dc,'degree':degree,'result':result,'hero':hero['name'],'action':text}
 
 def _valid_campaign(data):
