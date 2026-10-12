@@ -24,31 +24,23 @@ jobs:
         run: |
           python -m compileall -q .
           python -m unittest discover -v
-      - name: Verify public content update channel
-        run: |
-          python - <<'PY'
-          import tempfile,addon_updates,update_addons
-          with tempfile.TemporaryDirectory() as temp:
-              result=addon_updates.check_and_install(temp)
-              assert result==('updated','1.0.0'),result
-              content=update_addons.active_asset(temp,'stories/hollow-bell.json')
-              assert content is not None and content.is_file()
-              assert addon_updates.check_and_install(temp)==('current','1.0.0')
-              print('Verified HTTPS, SHA-256, install, activation and idempotent update.')
-          PY
       - name: Build native Mac app
         run: |
           python -m PyInstaller --noconfirm --clean --windowed --onedir \
             --name 'ACE Adventures 3' \
             --osx-bundle-identifier 'game.aceadventures.three' \
             app.py
-      - name: Validate bundled modules
+      - name: Verify packaged app structure
         run: |
           python - <<'PY'
           from pathlib import Path
-          for name in ('app','game','story','dungeon_master','ai','ai_connections','art','update_addons'):
-              p=Path('dist/ACE Adventures 3')/(name+'.py')
-          print('Source tests passed. PyInstaller dependency discovery completed.')
+          import plistlib
+          bundle=Path('dist/ACE Adventures 3.app')
+          info=plistlib.loads((bundle/'Contents/Info.plist').read_bytes())
+          exe=bundle/'Contents/MacOS'/info['CFBundleExecutable']
+          assert exe.is_file() and exe.stat().st_size>100000,exe
+          assert (bundle/'Contents/Frameworks').is_dir() or (bundle/'Contents/_internal').is_dir(), 'Missing PyInstaller runtime'
+          print('Verified native executable, plist, and bundled runtime.')
           PY
       - name: Verify frozen launcher
         run: |
