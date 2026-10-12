@@ -10,7 +10,7 @@ DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGH
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
  def _load_asset_index(self):
   index=DATA/'approved sprites'/'manifest.json'
   if index.is_file():
@@ -132,6 +132,15 @@ class App(tk.Tk):
    cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    if self.last_visual_cue:
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
+    # Upgraded abilities use visibly different static sigil geometry even
+    # when no optional animation sprite pack has been installed.
+    tier=getattr(self,'last_visual_tier',1)
+    if tier>1:
+     cx,cy=round(w*.47),round(h*.46)
+     for index in range(tier):
+      radius=24+index*16
+      cv.create_oval(cx-radius,cy-radius,cx+radius,cy+radius,outline='#ffcf70' if tier==2 else '#9ee7ef',width=2+index)
+     cv.create_text(cx,cy,text='✦' if tier==2 else '✧',fill='#fff5ce',font=('Georgia',27,'bold'))
  def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page('The Hollow Bell')
@@ -324,6 +333,7 @@ class App(tk.Tk):
    hero=self.c['characters'][self.c['active']]
    if result['roll_required']:
     visual=visual_mapping.cue_for(hero,result)
+    self.last_visual_tier=visual.get('tier',1)
     self.last_visual_cue=self.animation_director.enqueue(str(hero['id']),visual['animation'],visual['effect'] or '')
    else:
     self.last_visual_cue=None
