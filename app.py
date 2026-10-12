@@ -5,7 +5,7 @@ from pathlib import Path
 import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
-DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
+DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
@@ -35,16 +35,18 @@ class App(tk.Tk):
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
   return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
  def button(self,parent,text,fn,light=False):
-  return tk.Button(parent,text=text,command=fn,font=('Georgia',12,'bold'),bg=PARCH if light else WOOD,fg=INK if light else LIGHT,activebackground=BRASS,activeforeground=INK,relief='ridge',bd=3,highlightthickness=0,padx=12,pady=8,cursor='hand2')
+  return tk.Button(parent,text=text,command=fn,font=('Georgia',12,'bold'),bg=PARCH if light else WOOD,fg=INK if light else LIGHT,activebackground=BRASS,activeforeground=INK,relief='raised',bd=3,highlightthickness=1,highlightbackground=BRASS,padx=12,pady=8,cursor='hand2')
  def page(self,title):
-  self.clear();bar=tk.Frame(self,bg='#28332f',height=72);bar.pack(fill='x')
-  self.label(bar,'A.C.E.   ADVENTURES III',22,LIGHT,'#28332f').pack(side='left',padx=20,pady=12)
-  self.label(bar,title.upper(),11,BRASS,'#28332f').pack(side='left',padx=14)
+  self.clear();bar=tk.Frame(self,bg='#33261e',height=72);bar.pack(fill='x')
+  self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,'#33261e').pack(side='left',padx=20,pady=12)
+  self.label(bar,'❦  '+title.upper(),11,BRASS,'#33261e').pack(side='left',padx=14)
   self.button(bar,'THE CHRONICLES',self._home).pack(side='right',padx=12)
   self.button(bar,'AI CONNECTIONS',self._connections).pack(side='right',padx=5)
  def card(self,parent,title=''):
-  outer=tk.Frame(parent,bg=WOOD,bd=3,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=3);inner.pack(fill='both',expand=True,padx=4,pady=4)
-  if title:self.label(inner,title.upper(),14,fg='#78512f').pack(anchor='w',padx=16,pady=(14,7))
+  outer=tk.Frame(parent,bg=WOOD,bd=4,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=2);inner.pack(fill='both',expand=True,padx=4,pady=4)
+  if title:
+   self.label(inner,'❧   '+title.upper()+'   ❧',14,fg='#78512f').pack(anchor='w',padx=16,pady=(14,7))
+   tk.Frame(inner,bg=BRASS,height=2).pack(fill='x',padx=16,pady=(0,5))
   return outer,inner
  def _connections(self):
   """Probe optional services off the UI thread; leave campaigns untouched."""
@@ -127,8 +129,8 @@ class App(tk.Tk):
   for i,(title,key) in enumerate(story.options(self.c)):
    self.button(actions,title,lambda key=key:self._choose(key),True).grid(row=i//2,column=i%2,padx=4,pady=5,sticky='ew');actions.grid_columnconfigure(i%2,weight=1)
   self.label(f,'Describe another action to your Dungeon Master',12).pack(anchor='w',padx=15)
-  row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=12,pady=(4,13));entry=tk.Entry(row,font=('Georgia',13));entry.pack(side='left',fill='x',expand=True,padx=4)
-  self.button(row,'ROLL D20',lambda:self._free(entry.get())).pack(side='right')
+  row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=12,pady=(4,13));entry=tk.Entry(row,font=('Georgia',14),bg='#f8e8c8',fg=INK,relief='sunken',bd=2,insertbackground=INK);entry.pack(side='left',fill='x',expand=True,padx=4)
+  self.button(row,'CAST THE DIE  ⚄',lambda:self._free(entry.get())).pack(side='right')
   self._sidebar(right)
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
