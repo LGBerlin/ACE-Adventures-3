@@ -58,6 +58,10 @@ def perform(c,text,rng=None):
         result=game.action(c,text,rng)
         result['roll_required']=True
         dice_ledger.record(c,result,text)
+        if c.get("enemy") is None and story.ensure(c)["stage"]==3:
+            story.ensure(c)["stage"]=4
+            c["location"]="square"
+            c["history"].append("The guardian falls. Return to Elder Sera.")
         return result
     choice=interpret_simple(c,text)
     if choice is not None:
