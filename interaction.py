@@ -44,6 +44,10 @@ def perform(c,text,rng=None):
     if not text:raise ValueError('Describe what you want to do.')
     if not c.get('started'):raise ValueError('Start the campaign first.')
     lower=' '.join(text.casefold().split())
+    if lower in ('retreat after defeat','recover party','return to town after defeat'):
+        msg=game.retreat_to_town(c)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'recovery'}
+
     member=party_commands.parse(text)
     if member is not None:
         msg=party_commands.choose(c,member)
