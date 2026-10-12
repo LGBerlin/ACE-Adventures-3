@@ -95,7 +95,7 @@ def prompt_context(c,result):
     import town_services
     local_people={name:{'role':data['role'],'familiarity':c.get('town_memory',{}).get(name,0)}
                   for name,data in town_services.PEOPLE.items() if data['place']==c.get('location')}
-    import loot_system
+    import loot_system,ability_progression
     return {'campaign':c.get('title'), 'chapter':w['chapter'], 'location':c.get('location'),
             'enemy':{key:value for key,value in (c.get('enemy') or {}).items() if key in ('name','hp','max_hp','ac','boss','phase','staggered','weakened')},
             'guild_rank':town_services.guild_rank(c),
@@ -108,7 +108,9 @@ def prompt_context(c,result):
             'quest':c.get('quest',{}), 'party':[
               {'name':h['name'],'class':h['class'],'path':h['path'],'level':h.get('level',1),
                'hp':h['hp'],'max_hp':h['max_hp'],'mana':h['mana'],'max_mana':h['max_mana'],
-               'known_abilities':h.get('moves',[])[-15:], 'passives':h.get('passives',[])[-10:],
+               'known_abilities':h.get('moves',[])[-15:],
+               'ability_ranks':{move:ability_progression.rank(h,move) for move in h.get('moves',[])[-15:]},
+               'passives':h.get('passives',[])[-10:],
                'equipment':h.get('gear_slots',{}), 'equipment_effects':loot_system.bonuses(h),
                'enchants':h.get('enchant_types',{})}
               for h in c.get('characters',[])],
