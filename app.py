@@ -2,14 +2,14 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree
+import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(400,self._poll)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(400,self._poll)
  def _load_asset_index(self):
   index=DATA/'approved sprites'/'manifest.json'
   if index.is_file():
@@ -172,7 +172,11 @@ class App(tk.Tk):
   if not text:return
   try:
    had_enemy=bool(self.c.get('enemy'))
-   result=game.action(self.c,text);game.save(DATA,self.c)
+   result=game.action(self.c,text)
+   hero=self.c['characters'][self.c['active']]
+   visual=visual_mapping.cue_for(hero,result)
+   self.last_visual_cue=self.animation_director.enqueue(str(hero['id']),visual['animation'],visual['effect'] or '')
+   game.save(DATA,self.c)
    if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
     story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
    self._adventure();self._roll_display(result);self._narrate(result['result'])
