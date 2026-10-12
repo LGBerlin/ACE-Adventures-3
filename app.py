@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog
+import game,ai,story,art,ai_connections,addon_updates,update_addons,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -58,6 +58,7 @@ class App(tk.Tk):
   self.label(inside,'Ollama: storytelling and action interpretation\nComfyUI: optional offline artwork generation (not live gameplay)',11,wraplength=450).pack(anchor='w',padx=12)
   self.label(inside,'Content updates: '+self.update_status,11,wraplength=450).pack(anchor='w',padx=12,pady=4)
   self.button(inside,'CHECK FOR CONTENT UPDATES',self._check_content_updates,True).pack(padx=12,pady=4)
+  self.button(inside,'RESTORE PREVIOUS CONTENT',self._rollback_content,True).pack(padx=12,pady=4)
   self.button(inside,'GENERATE LOCATION ART (COMFYUI)',lambda:self._generate_scene(popup,status),True).pack(padx=12,pady=4)
   def worker():
    result=ai_connections.all_statuses(timeout=2)
@@ -239,6 +240,16 @@ class App(tk.Tk):
    except Exception as e:
     self.q.put(('generated',(popup,status,place,None,str(e)[:200])))
   threading.Thread(target=worker,daemon=True).start()
+ def _rollback_content(self):
+  """Restore the last verified content package, never edit saved adventures."""
+  try:
+   update_addons.rollback(DATA)
+   self.update_status='Previous content restored; restart optional.'
+   if self.c:self._adventure()
+   else:self._home()
+  except (ValueError,OSError,KeyError) as e:
+   messagebox.showwarning('Content Recovery',str(e))
+
  def _check_content_updates(self):
   """Network and disk activity happen outside Tk's event loop."""
   def worker():
