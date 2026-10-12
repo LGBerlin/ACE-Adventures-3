@@ -328,29 +328,33 @@ class App(tk.Tk):
   self.label(parent,'Green: party location · Brown: available road',10,wraplength=260).pack(anchor='w')
  def _map_travel(self,destination):
   try:
-   atlas.travel(self.c,destination)
+   result=atlas.travel(self.c,destination)
    game.save(DATA,self.c)
    self._adventure()
+   self._narrate(result)
   except ValueError as exc:messagebox.showwarning('Map',str(exc))
  def _trade(self,operation,item):
   try:
-   if operation=='buy':merchant.buy(self.c,item)
-   elif operation=='sell':merchant.sell(self.c,item)
+   if operation=='buy':result=merchant.buy(self.c,item)
+   elif operation=='sell':result=merchant.sell(self.c,item)
    else:raise ValueError('Unknown trade action.')
    game.save(DATA,self.c)
    self._adventure()
+   self._narrate(result)
   except ValueError as exc:messagebox.showwarning("Yarrow's Apothecary",str(exc))
  def _equip(self,item):
   try:
-   equipment.equip(self.c,item)
+   result=equipment.equip(self.c,item)
    game.save(DATA,self.c)
    self._adventure()
+   self._narrate(result)
   except ValueError as e:messagebox.showwarning('Equipment',str(e))
  def _consume(self,item):
   try:
-   game.use_item(self.c,item)
+   result=game.use_item(self.c,item)
    game.save(DATA,self.c)
    self._adventure()
+   self._narrate(result)
   except ValueError as e:messagebox.showwarning('Inventory',str(e))
  def _panel(self,name):self.panel=name;self._adventure()
  def _choose(self,key):
