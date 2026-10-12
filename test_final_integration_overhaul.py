@@ -78,6 +78,26 @@ class IntegrationOverhaul(unittest.TestCase):
   self.assertEqual(c['turn'],before+1)
   self.assertEqual(c['quest']['stage'],3)
   self.assertEqual(len(c.get('dice_history',[])),1)
+ def test_invented_cast_does_not_spend_mana_or_roll(self):
+  c=self.make()
+  c['active']=1
+  h=c['characters'][1]
+  mana=h['mana']
+  c['enemy']={'name':'Hollow Guardian','hp':30,'max_hp':30,'ac':14,'boss':True}
+  with self.assertRaisesRegex(ValueError,'not learned'):
+   interaction.perform(c,'I cast an invented thunderfire spell',self.Maximum())
+  self.assertEqual(h['mana'],mana)
+  self.assertEqual(c['turn'],0)
+  self.assertFalse(c.get('dice_history'))
+ def test_known_school_spell_remains_available(self):
+  c=self.make()
+  c['active']=1
+  h=c['characters'][1]
+  c['enemy']={'name':'Training dummy','hp':50,'max_hp':50,'ac':10}
+  known=h['moves'][0]
+  result=interaction.perform(c,'I cast '+known,self.Maximum())
+  self.assertTrue(result['roll_required'])
+  self.assertEqual(len(c['dice_history']),1)
  def test_enchant_equipment_and_dice_are_saved_together(self):
   c=self.make()
   h=c['characters'][0];h['gold']=100;h['inventory'].append('Chainmail')
