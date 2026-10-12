@@ -123,16 +123,17 @@ class App(tk.Tk):
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  cv.delete('all');w=max(10,cv.winfo_width());h=max(10,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
-   art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
+   size=max(1,min(3,int(h/120)))
+   art.character(cv,round(w*.15),round(h*.32),hero['class'],hero['sprite_seed'],size)
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
-   # Placeholder opponent remains visible until approved animation pack is installed.
-   art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
-   cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
+   art.enemy(cv,round(w*.78),round(h*.55),enemy['name'],self.c['world_seed'],size)
+   cv.create_text(round(w*.75),round(h*.92),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',12,'bold'))
    if self.last_visual_cue:
+    cv.create_line(round(w*.30),round(h*.58),round(w*.68),round(h*.58),fill='#f0ce83',width=4,dash=(7,7))
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
     # Upgraded abilities use visibly different static sigil geometry even
     # when no optional animation sprite pack has been installed.
