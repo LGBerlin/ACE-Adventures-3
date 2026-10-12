@@ -229,7 +229,16 @@ def action(c,text,rng=None):
             c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
-            dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
+            if c['enemy'].get('boss'):
+                phase=2 if c['enemy']['hp']<=c['enemy'].get('max_hp',30)//2 else 1
+                c['enemy']['phase']=phase
+                strike='Bellshock' if phase==2 else 'Guardian Slam'
+                dmg=rng.randint(2,5) if phase==2 else rng.randint(1,4)
+                outcome.append('Boss uses '+strike+'.')
+            else:
+                dmg=rng.randint(1,4)
+            hero['hp']=max(0,hero['hp']-dmg)
+            outcome.append(f'Enemy retaliates for {dmg} HP.')
     elif defensive:
         incoming=rng.randint(1,4)
         reduction=(2 if total>=dc else 1)+min(3,sum(' Mastery ' in p for p in hero.get('passives',[]))//3)
