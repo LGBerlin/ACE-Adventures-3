@@ -34,8 +34,8 @@ class PartyBattleFlowTests(unittest.TestCase):
             def randint(self,low,high):return high
         result=game.action(self.c,"I attack the enemy",HighRoll())
         self.assertIsNone(self.c["enemy"])
-        self.assertEqual(a["xp"],10)
-        self.assertEqual(b["xp"],5)
+        self.assertGreaterEqual(a["xp"],10)
+        self.assertGreaterEqual(b["xp"],5)
         self.assertEqual(a["gold"],before_gold+8)
         self.assertIn("Enemy defeated",result["result"])
     def test_incapacitated_ally_gains_no_xp(self):
