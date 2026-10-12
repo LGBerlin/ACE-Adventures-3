@@ -200,7 +200,7 @@ def action(c,text,rng=None):
             if known:
                 # Distinguish class actions from a basic weapon swing.
                 # Bonus scales gently with progression and stays deterministic.
-                dmg+=1+hero['level']//6
+                dmg+=1+hero['level']//6+min(4,sum(' Mastery ' in p for p in hero.get('passives',[]))//2)
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
         if c['enemy']['hp']==0:
@@ -216,7 +216,7 @@ def action(c,text,rng=None):
             dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
     elif defensive:
         incoming=rng.randint(1,4)
-        reduction=2 if total>=dc else 1
+        reduction=(2 if total>=dc else 1)+min(3,sum(' Mastery ' in p for p in hero.get('passives',[]))//3)
         damage=max(0,incoming-reduction)
         hero['hp']=max(0,hero['hp']-damage)
         outcome.append(f'Guard stance reduces an incoming {incoming} damage to {damage}.')
