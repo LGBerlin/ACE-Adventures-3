@@ -123,7 +123,8 @@ def equip(c,item):
 def _apply_incoming(hero,raw):
     """Consume the next-attack ward, without allowing persistent free immunity."""
     ward=max(0,int(hero.setdefault('statuses',{}).pop('ward',0)))
-    actual=max(0,raw-ward)
+    armor=1 if hero.get('equipment',{}).get('armor')=='Leather Armor' else 0
+    actual=max(0,raw-ward-armor)
     hero['hp']=max(0,hero['hp']-actual)
     return actual
 
@@ -188,6 +189,8 @@ def action(c,text,rng=None):
     sneak=any(x in t for x in ['sneak','hide','escape','dodge'])
     stat='CHA' if social else 'INT' if hero['class']=='Mage' and known else 'DEX' if sneak or hero['class']=='Rogue' and attack else 'STR' if attack else 'WIS'
     modifier=(hero['stats'][stat]-10)//2
+    if attack and hero.get('equipment',{}).get('weapon') in ('Iron Sword','Daggers','Short Bow'):
+        modifier+=1
     dc=c['enemy']['ac'] if attack else 13
     roll=rng.randint(1,20);total=roll+modifier
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
