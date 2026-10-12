@@ -15,7 +15,10 @@ def catalog(school):
     if school not in game.SPELLS:raise ValueError('Unknown magic school')
     return [{'name':name,'level':1,'school':school} for name in game.SPELLS[school]]+[
       {'name':REGULAR[school],'level':5,'school':school}]+[
-      {'name':name,'level':level,'school':school} for name,level in zip(ADVANCED[school],(12,20))]
+      {'name':name,'level':level,'school':school} for name,level in zip(ADVANCED[school],(12,20))]+[{'name':name,'level':level,'school':school} for name,level in late_names(school)]
+def late_names(school):
+    base=REGULAR[school]
+    return [(base+' Ascendant',35),(base+' Exalted',60),(base+' Mythic',85)]
 def unlocked(school,level):
     return [entry['name'] for entry in catalog(school) if entry['level']<=level]
 def role(hero):
