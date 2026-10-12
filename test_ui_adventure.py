@@ -25,6 +25,7 @@ class IllustratedWindowFlow(unittest.TestCase):
     root._panel('Pack');root.update_idletasks()
     root._panel('Journal');root.update_idletasks()
     root._panel('Map');root.update_idletasks()
+    root._panel('Town');root.update_idletasks()
     root._panel('Dice Board');root.update_idletasks()
     story.select(c,'encounter');root._adventure();root.update_idletasks()
     root._switch(1);root.update_idletasks()
