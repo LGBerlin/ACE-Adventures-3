@@ -172,6 +172,8 @@ class App(tk.Tk):
   history.insert('1.0','\\n\\n'.join(lines))
   history.configure(state='disabled')
   history.see('end')
+  self.dm_status=self.label(f,'Dungeon Master is responding...' if self.busy else 'Ready for your next action',11,fg='#624627')
+  self.dm_status.pack(anchor='w',padx=16,pady=(4,1))
   self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
   row=tk.Frame(f,bg=PARCH)
   row.pack(fill='x',padx=13,pady=(0,12))
@@ -291,6 +293,7 @@ class App(tk.Tk):
  def _narrate(self,resolved):
   if self.busy:return
   self.busy=True;identity=self.c['id'];snapshot=json.loads(json.dumps(self.c))
+  if hasattr(self,'dm_status') and self.dm_status.winfo_exists():self.dm_status.config(text='Dungeon Master is responding...')
   def worker():
    try:message=ai.narrate(snapshot,resolved)
    except Exception:message='The Dungeon Master is unavailable. Your dice results and campaign remain saved.'
@@ -360,6 +363,7 @@ class App(tk.Tk):
       else:self._home()
     if kind=='story':
      self.busy=False
+     if hasattr(self,'dm_status') and self.dm_status.winfo_exists():self.dm_status.config(text='Ready for your next action')
      if self.c and self.c['id']==value[0]:
       self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
   except queue.Empty:pass
