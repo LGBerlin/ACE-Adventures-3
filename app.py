@@ -9,7 +9,7 @@ DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGH
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(150,self._poll);self.after(5000,self._check_content_updates)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(400,self._poll)
  def _load_asset_index(self):
   index=DATA/'approved sprites'/'manifest.json'
   if index.is_file():
@@ -236,6 +236,6 @@ class App(tk.Tk):
      if self.c and self.c['id']==value[0]:
       self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
   except queue.Empty:pass
-  self.after(150,self._poll)
+  self.after(400,self._poll)
  def _exit(self):game.save(DATA,self.c);self._home()
 if __name__=='__main__':App().mainloop()
