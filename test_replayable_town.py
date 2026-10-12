@@ -47,6 +47,16 @@ class ReplayableTownTests(unittest.TestCase):
    self.assertEqual(restored['town_memory']['Nella'],2)
    final=interaction.perform(restored,'talk to Nella')
    self.assertIn('familiar face',final['result'])
+ def test_natural_language_questions_do_not_roll_dice(self):
+  c=self.make()
+  response=interaction.perform(c,'ask Nella about the old roads')
+  self.assertFalse(response['roll_required'])
+  self.assertIn('Nella:',response['result'])
+  self.assertFalse(c.get('dice_history'))
+  c['location']='tavern'
+  result=interaction.perform(c,'chat with Tomas about the forest')
+  self.assertFalse(result['roll_required'])
+  self.assertIn('Tomas:',result['result'])
  def test_guild_rank_restricts_and_unlocks_higher_jobs(self):
   c=self.make()
   self.assertEqual(town_services.guild_rank(c),'Novice')
