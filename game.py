@@ -90,6 +90,8 @@ def encounter(c,rng=None):
     rng=rng or random.Random()
     if c['enemy']:return
     c['enemy']={'name':rng.choice(['Moss Goblin','Thorn Wolf','Forest Wisp']),'hp':15,'max_hp':15,'ac':12,'pos':[5,2]}
+    if c.get('quest',{}).get('stage')==3:
+        c['enemy']={'name':'Hollow Guardian','hp':30,'max_hp':30,'ac':14,'boss':True,'pos':[5,2]}
     c['history'].append('An enemy blocks the forest road. Battle begins!')
     import combat_log
     combat_log.append(c,actor=c['enemy']['name'],kind='encounter',description='A hostile creature appears.',hp=c['enemy']['hp'])
@@ -214,6 +216,16 @@ def action(c,text,rng=None):
                 if ally is not hero and ally['hp']>0:
                     award_experience(ally,5+max(0,(ally['stats'].get('INT',10)-10)//4))
             hero['gold']+=8
+            import loot_system
+            pool=['Travel Rations','Health Potion','Wolf Fang','Greatsword','Guardian Ring']
+            dropped=pool[rng.randint(0,len(pool)-1)]
+            hero['inventory'].append(dropped)
+            outcome.append('Loot: '+dropped+'.')
+            c.setdefault('loot_history',[]).append({'item':dropped,'turn':c['turn'],'boss':bool(c['enemy'].get('boss'))})
+            c['loot_history']=c['loot_history'][-100:]
+            if c['enemy'].get('boss'):
+                hero['inventory'].append('Hollow Guardian Relic')
+                outcome.append('Boss trophy: Hollow Guardian Relic.')
             c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
