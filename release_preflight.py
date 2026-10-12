@@ -3,7 +3,7 @@ from pathlib import Path
 import ast
 ROOT=Path(__file__).resolve().parent
 MODULES=('app','game','story','story_tree','dungeon_master','ai','ai_connections','art','update_addons','addon_updates','asset_registry','animation_director','comfy_art')
-TESTS=('test_game.py','test_story_addons.py','test_dungeon_master.py','test_reliability.py','test_updater_security.py','test_combat_regression.py','test_rollback_safety.py','test_asset_registry.py','test_animation_director.py','test_story_tree.py','test_roulette_spec.py','test_mac_gui.py')
+TESTS=('test_game.py','test_story_addons.py','test_dungeon_master.py','test_reliability.py','test_updater_security.py','test_combat_regression.py','test_rollback_safety.py','test_asset_registry.py','test_animation_director.py','test_story_tree.py','test_roulette_spec.py','test_mac_gui.py','test_mac_adventure_acceptance.py','test_idle_performance.py')
 def verify(root=ROOT):
     root=Path(root)
     missing=[str(root/(m+'.py')) for m in MODULES if not (root/(m+'.py')).is_file()]
