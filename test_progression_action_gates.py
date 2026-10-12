@@ -51,7 +51,7 @@ class ProgressionActionGateTests(unittest.TestCase):
    game.action(c,'I cast Healing Wave',random.Random(2))
  def test_newly_unlocked_technique_accepted(self):
   hero=game.character('F',20,'Fighter',random.Random(4));c=game.new_campaign('T',1);game.add_hero(c,hero);game.start(c)
-  game.award_experience(hero,150)
+  game.award_experience(hero,1200)
   technique=technique_catalog.catalog(hero['path'])[0]['name']
   self.assertIn(technique,hero['moves'])
   game.action(c,'I use '+technique,random.Random(1))
