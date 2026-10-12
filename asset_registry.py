@@ -76,3 +76,25 @@ def appearance_id(character):
     value=str(character.get('sprite_seed',character.get('id',character.get('name',''))))
     cls=character.get('class','Fighter').lower()
     return cls+'_'+hashlib.sha256(value.encode()).hexdigest()[:10]
+
+def select_character_sprite(registry,character,category='portrait'):
+    """Select a repeatable approved image variant without modifying the character.
+
+    Path-matched sprites take priority, followed by class-matched art.
+    Missing imagery returns None so the native canvas can draw a fallback.
+    """
+    if category not in ('portrait','body','idle'):
+        raise ValueError('Unsupported character sprite category')
+    cls=str(character.get('class','Fighter')).lower()
+    path=str(character.get('path','')).lower()
+    keys=registry.choose(category,**{'class':cls,'path':path})
+    if not keys:
+        keys=registry.choose(category,**{'class':cls})
+    if not keys:return None
+    seed=str(character.get('sprite_seed',character.get('id',character.get('name',''))))
+    index=int.from_bytes(hashlib.sha256((cls+'|'+path+'|'+seed).encode()).digest()[:8],'big')%len(keys)
+    # Deterministic alternate selection if a listed image was removed or corrupted.
+    for offset in range(len(keys)):
+        key=keys[(index+offset)%len(keys)]
+        if registry.bytes(key) is not None:return key
+    return None
