@@ -29,7 +29,7 @@ def character(name,age,kind,rng=None):
     stats={k:max(6,min(20,rng.randint(8,15)+b)) for k,b in zip(['STR','DEX','CON','INT','WIS','CHA'],bonuses)}
     hp=max(8,{'Rogue':18,'Mage':13,'Fighter':25,'Vessel':21}[kind]+(stats['CON']-10)//2+rng.randint(-2,2))
     mana=max(0,{'Rogue':6,'Mage':24,'Fighter':3,'Vessel':15}[kind]+rng.randint(-2,3))
-    return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':list(SPELLS[magic]) if kind=='Mage' else list(MOVES[path]),'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
+    return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':list(SPELLS[magic]) if kind=='Mage' else list(MOVES[path]),'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'equipment':{'weapon':{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind],'armor':None,'accessory':None},'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
 
 def award_experience(hero,amount):
     """Award XP via verified game rules, never from LLM narration."""
@@ -103,6 +103,63 @@ def use_item(c,item,hero_index=None):
     c['turn']+=1
     return message
 
+EQUIPMENT_SLOTS={'Iron Sword':'weapon','Daggers':'weapon','Ashwood Staff':'weapon',
+                 'Pilgrim Staff':'weapon','Short Bow':'weapon','Leather Armor':'armor'}
+def equip(c,item):
+    """Equip owned gear outside combat; never trust a narrative grant."""
+    if not c.get('started'):raise ValueError('Start your adventure first.')
+    if c.get('enemy'):raise ValueError('You cannot change equipment in active combat.')
+    hero=c['characters'][c['active']]
+    if item not in hero.get('inventory',[]):raise ValueError('You do not own that item.')
+    slot=EQUIPMENT_SLOTS.get(item)
+    if slot is None:raise ValueError('That item is not equipable.')
+    equipment=hero.setdefault('equipment',{'weapon':None,'armor':None,'accessory':None})
+    equipment[slot]=item
+    result=f"{hero['name']} equips {item}."
+    c['history'].append(result)
+    c['turn']+=1
+    return result
+
+def _apply_incoming(hero,raw):
+    """Consume the next-attack ward, without allowing persistent free immunity."""
+    ward=max(0,int(hero.setdefault('statuses',{}).pop('ward',0)))
+    armor=1 if hero.get('equipment',{}).get('armor')=='Leather Armor' else 0
+    actual=max(0,raw-ward-armor)
+    hero['hp']=max(0,hero['hp']-actual)
+    return actual
+
+def cast_utility(c,spell,rng=None):
+    """Resolve deterministic support magic without inventing an unnecessary D20."""
+    rng=rng or random.Random()
+    if not c.get('started'):raise ValueError('Start the adventure first.')
+    hero=c['characters'][c['active']]
+    if hero.get('class')!='Mage' or hero.get('magic')!='Support' or spell not in hero['moves']:
+        raise ValueError('You have not learned that support spell.')
+    if hero['hp']<=0:raise ValueError('An incapacitated character cannot cast.')
+    if spell not in ('Healing Wave','Protective Aura'):
+        raise ValueError('That spell requires a different resolution.')
+    if hero['mana']<4:raise ValueError('Not enough mana.')
+    if spell=='Healing Wave' and hero['hp']>=hero['max_hp']:
+        raise ValueError('Already at full health.')
+    if spell=='Protective Aura' and hero.setdefault('statuses',{}).get('ward',0)>=2:
+        raise ValueError('Your protective aura is already active.')
+    hero['mana']-=4
+    if spell=='Healing Wave':
+        amount=min(6,hero['max_hp']-hero['hp'])
+        hero['hp']+=amount
+        effect=f'Healing Wave restores {amount} HP.'
+    else:
+        hero.setdefault('statuses',{})['ward']=2
+        effect='Protective Aura absorbs up to 2 damage from the next attack.'
+    if c.get('enemy'):
+        incoming=rng.randint(1,4)
+        actual=_apply_incoming(hero,incoming)
+        effect+=f' The enemy strikes for {actual} HP.'
+    c['turn']+=1
+    message=hero['name']+' casts '+spell+'. '+effect
+    c['history'].append(message)
+    return message
+
 def action(c,text,rng=None):
     rng=rng or random.Random();text=text.strip()
     if not c['started']:raise ValueError('Start the campaign first.')
@@ -132,6 +189,8 @@ def action(c,text,rng=None):
     sneak=any(x in t for x in ['sneak','hide','escape','dodge'])
     stat='CHA' if social else 'INT' if hero['class']=='Mage' and known else 'DEX' if sneak or hero['class']=='Rogue' and attack else 'STR' if attack else 'WIS'
     modifier=(hero['stats'][stat]-10)//2
+    if attack and hero.get('equipment',{}).get('weapon') in ('Iron Sword','Daggers','Short Bow'):
+        modifier+=1
     dc=c['enemy']['ac'] if attack else 13
     roll=rng.randint(1,20);total=roll+modifier
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
@@ -142,16 +201,19 @@ def action(c,text,rng=None):
             dmg=rng.randint(1,6)+max(0,modifier)
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
+            if known=='Blood Drain' and hero.get('magic')=='Blood':
+                restored=min(dmg//2,hero['max_hp']-hero['hp'])
+                hero['hp']+=restored;outcome.append(f'Blood Drain restores {restored} HP.')
         if c['enemy']['hp']==0:
             outcome.append('Enemy defeated, +10 XP, +8 gold.');new_spells=award_experience(hero,10);hero['gold']+=8;c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
-            dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
+            dmg=_apply_incoming(hero,rng.randint(1,4));outcome.append(f'Enemy retaliates for {dmg} HP.')
     elif defensive:
         incoming=rng.randint(1,4)
         reduction=2 if total>=dc else 1
         damage=max(0,incoming-reduction)
-        hero['hp']=max(0,hero['hp']-damage)
+        damage=_apply_incoming(hero,damage)
         outcome.append(f'Guard stance reduces an incoming {incoming} damage to {damage}.')
     elif 'smoke' in t or 'cover' in t:
         if known and hero['magic']=='Fire' and any(x in t for x in ['leaves','grass','wood']) and total>=dc:
@@ -164,7 +226,7 @@ def action(c,text,rng=None):
         if c.get('enemy'):
             guarded=any(re.search(r'(?<!\w)'+word+r'(?!\w)',t) for word in ('guard','defend','block','shield','dodge')) and total>=dc
             retaliation=max(0,rng.randint(1,4)-(2 if guarded else 0))
-            hero['hp']=max(0,hero['hp']-retaliation)
+            retaliation=_apply_incoming(hero,retaliation)
             outcome.append(f'Enemy retaliates for {retaliation} HP.' if retaliation else 'Your guard prevents the counterattack.')
     result=f'D20 {roll} {modifier:+d} = {total}, DC {dc}: {degree}. '+' '.join(outcome)
     c['turn']+=1;c['history'].append(hero['name']+': '+text+'\n'+result)

@@ -1,20 +1,36 @@
 """ACE Adventures 3 illustrated story-first native Tk interface."""
-import json,queue,threading,tkinter as tk
+import json,queue,threading,tkinter as tk,sys
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop,dungeon_master,ui_inventory,ui_shop,ui_abilities
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(400,self._poll)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._closing=False;self._poll_job=None;self._intent_generation=0;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+ def destroy(self):
+  """Cancel recurring Tk work before tearing down the native interpreter."""
+  self._closing=True
+  job=getattr(self,'_poll_job',None)
+  if job is not None:
+   try:self.after_cancel(job)
+   except tk.TclError:pass
+   self._poll_job=None
+  super().destroy()
  def _load_asset_index(self):
-  index=DATA/'approved sprites'/'manifest.json'
-  if index.is_file():
-   try:self.asset_pack.load(index)
-   except (OSError,ValueError):pass
+  """Load verified user-approved artwork first; then bundled licensed starter art."""
+  bundle=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))
+  for root in (DATA/'approved sprites',bundle/'assets'/'starter'):
+   manifest=root/'manifest.json'
+   if not manifest.is_file():continue
+   try:
+    registry=asset_registry.Registry(root,max_cache_bytes=16*1024*1024)
+    registry.load(manifest)
+    self.asset_pack=registry
+    return
+   except (OSError,ValueError):continue
  def _portrait(self,canvas,hero):
   """Static image only; never start a render loop in the story screen."""
   key=asset_registry.select_character_sprite(self.asset_pack,hero,'portrait')
@@ -26,7 +42,7 @@ class App(tk.Tk):
     with Image.open(BytesIO(source)) as img:
      img.thumbnail((168,168))
      photo=ImageTk.PhotoImage(img.copy(),master=canvas)
-    canvas.create_image(122,90,image=photo)
+    canvas.create_image(int(canvas.cget('width'))//2,int(canvas.cget('height'))//2,image=photo)
     canvas.image=photo
     return
    except (ImportError,OSError,ValueError,tk.TclError):pass
@@ -71,11 +87,14 @@ class App(tk.Tk):
   self.button(inside,'RESTORE PREVIOUS CONTENT',self._rollback_content,True).pack(padx=12,pady=4)
   self.button(inside,'CHECK APP RELEASES (MANUAL INSTALL)',self._check_app_releases,True).pack(padx=12,pady=4)
   self.button(inside,'GENERATE LOCATION ART (COMFYUI)',lambda:self._generate_scene(popup,status),True).pack(padx=12,pady=4)
+  self._connections_target=(popup,status)
+  outbox=self.q
   def worker():
    result=ai_connections.all_statuses(timeout=2)
-   self.q.put(('services',(popup,status,result)))
+   outbox.put(('services',result))
   threading.Thread(target=worker,daemon=True).start()
  def _home(self):
+  self._intent_generation+=1;self.busy=False
   self.last_visual_cue=None;self.animation_director.clear();self.c=None;self.page('The Book of Unwritten Roads')
   body=tk.Frame(self,bg=DARK);body.pack(expand=True,fill='both',padx=18,pady=15)
   left,inside=self.card(body,'Campaign Library');left.pack(side='left',fill='y',padx=(0,12))
@@ -93,7 +112,7 @@ class App(tk.Tk):
    try:self.c=game.new_campaign(name.get(),int(count.get()));game.save(DATA,self.c);self._show()
    except ValueError as e:messagebox.showerror('Campaign',str(e))
   self.button(f,'OPEN THE CHRONICLE',create).pack(pady=22)
- def _open(self,c):self.last_visual_cue=None;self.animation_director.clear();self.c=c;story.ensure(self.c);self._show()
+ def _open(self,c):self._intent_generation+=1;self.busy=False;self.last_visual_cue=None;self.animation_director.clear();self.c=c;story.ensure(self.c);self._show()
  def _show(self):
   if len(self.c['characters'])<self.c['players']:self._create_character()
   else:self._adventure()
@@ -106,7 +125,7 @@ class App(tk.Tk):
   cls=tk.StringVar();grid=tk.Frame(f,bg=PARCH);grid.pack(pady=10)
   for j,(kind,desc) in enumerate([('Fighter','Steel & Resolve'),('Rogue','Shadow & Precision'),('Mage','Arcane Knowledge'),('Vessel','Spirit & Balance')]):
    area=tk.Frame(grid,bg='#bba278',highlightbackground=WOOD,highlightthickness=3);area.grid(row=0,column=j,padx=6)
-   cv=tk.Canvas(area,width=132,height=155,bg='#686456',highlightthickness=0);cv.pack(padx=5,pady=6);art.character(cv,18,20,kind,j+15,4)
+   cv=tk.Canvas(area,width=132,height=155,bg='#514838',highlightthickness=0);cv.pack(padx=5,pady=6);self._portrait(cv,{'class':kind,'path':game.PATHS[kind][0],'sprite_seed':j+15})
    self.button(area,kind,lambda kind=kind:cls.set(kind),True).pack(fill='x',padx=5)
    self.label(area,desc,10,bg='#bba278').pack(pady=8)
   chosen=self.label(f,'Select a class before binding your fate.',12);chosen.pack(pady=6);cls.trace_add('write',lambda *_:chosen.config(text='Selected: '+cls.get()))
@@ -114,29 +133,63 @@ class App(tk.Tk):
    try:
     if not cls.get():raise ValueError('Select a class first.')
     if not messagebox.askyesno('Permanent roll','Generate this character permanently? There are no rerolls.'):return
-    hero=game.character(name.get(),int(age.get()),cls.get());game.add_hero(self.c,hero);game.save(DATA,self.c);self._show()
+    hero=game.character(name.get(),int(age.get()),cls.get());game.add_hero(self.c,hero);game.save(DATA,self.c);self._show();ui_character_sheet.open_sheet(self,hero)
    except ValueError as e:messagebox.showerror('Character',str(e))
   self.button(f,'BIND MY FATE  ·  PERMANENT ROLL',roll).pack(pady=15)
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  cv.delete('all');cv._ace_actor_refs=[];w=max(650,cv.winfo_width());h=max(270,cv.winfo_height())
+  battle=bool(self.c and self.c.get('enemy'))
+  key=next(iter(self.asset_pack.choose('background',location='battle' if battle else place)),None)
+  painted=False
+  if key:
+   data=self.asset_pack.bytes(key)
+   if data:
+    try:
+     from PIL import Image,ImageTk,ImageOps
+     with Image.open(BytesIO(data)) as im:
+      fitted=ImageOps.fit(im.convert('RGBA'),(w,h),method=Image.Resampling.NEAREST)
+      photo=ImageTk.PhotoImage(fitted,master=cv)
+     cv.create_image(0,0,image=photo,anchor='nw')
+     cv._ace_scene_image=photo
+     painted=True
+    except (ImportError,OSError,ValueError,tk.TclError):pass
+  if not painted:art.world(cv,place,battle,w,h)
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
-   art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
+   if not self._scene_actor(cv,hero,round(w*.2),round(h*.81)):
+    art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
    # Placeholder opponent remains visible until approved animation pack is installed.
-   art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
+   if not self._scene_actor(cv,hero,round(w*.73),round(h*.81),enemy=True):
+    art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
    cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    if self.last_visual_cue:
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
- def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
+ def _scene_actor(self,cv,hero,x,y,enemy=False):
+  """Draw a static approved/bundled sprite; never animate during idle scenes."""
+  keys=self.asset_pack.choose('body',enemy='hollow_guardian') if enemy else []
+  key=(keys[0] if keys else None) if enemy else asset_registry.select_character_sprite(self.asset_pack,hero,'body')
+  data=self.asset_pack.bytes(key) if key else None
+  if not data:return False
+  try:
+   from PIL import Image,ImageTk
+   with Image.open(BytesIO(data)) as im:
+    photo=ImageTk.PhotoImage(im.convert('RGBA').resize((118,118),Image.Resampling.NEAREST),master=cv)
+   refs=getattr(cv,'_ace_actor_refs',[])
+   refs.append(photo);cv._ace_actor_refs=refs
+   cv.create_image(x,y,image=photo,anchor='s')
+   return True
+  except (ImportError,OSError,ValueError,tk.TclError):return False
+ def _switch(self,i):self._intent_generation+=1;self.busy=False;self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page('The Hollow Bell')
   if not self.c['started']:
    outer,inside=self.card(self,'The party has gathered');outer.pack(fill='both',expand=True,padx=80,pady=25)
-   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['class']+' · '+hero['path'],16).pack(padx=18,pady=10)
+   for hero in self.c['characters']:
+    self.button(inside,hero['name']+' · '+hero['class']+' · '+hero['path']+' — VIEW SHEET',lambda h=hero:ui_character_sheet.open_sheet(self,h),True).pack(fill='x',padx=18,pady=6)
    self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25)
    return
   body=tk.Frame(self,bg=DARK)
@@ -153,7 +206,8 @@ class App(tk.Tk):
   members.pack(fill='x',padx=12,pady=7)
   for i,h in enumerate(self.c['characters']):
    line=('%s  ·  %s  ·  HP %s/%s'%(h['name'],game.display_archetype(h),h['hp'],h['max_hp']))
-   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).pack(side='left',padx=3,pady=3)
+   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).grid(row=i//4,column=i%4,padx=3,pady=3,sticky='ew')
+  for col in range(4):members.grid_columnconfigure(col,weight=1)
   outer,f=self.card(left,story.PLACES[self.c['location']][0])
   outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,height=225,bg=DARK,highlightthickness=0)
@@ -172,6 +226,8 @@ class App(tk.Tk):
   history.insert('1.0','\\n\\n'.join(lines))
   history.configure(state='disabled')
   history.see('end')
+  self.dm_status=self.label(f,'Dungeon Master is responding...' if self.busy else 'Ready for your next action',11,fg='#624627')
+  self.dm_status.pack(anchor='w',padx=16,pady=(4,1))
   self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
   row=tk.Frame(f,bg=PARCH)
   row.pack(fill='x',padx=13,pady=(0,12))
@@ -188,14 +244,28 @@ class App(tk.Tk):
   cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
   self.label(f,h['name'],20).pack(padx=14)
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+  self.button(f,'OPEN FULL CHARACTER SHEET',lambda:ui_character_sheet.open_sheet(self,h),True).pack(fill='x',padx=12,pady=4)
+  self.button(f,'OPEN INVENTORY & EQUIPMENT',self._open_inventory,True).pack(fill='x',padx=12,pady=4)
+  self.button(f,'OPEN SPELLBOOK & TECHNIQUES',lambda:ui_abilities.open_abilities(self,h),True).pack(fill='x',padx=12,pady=4)
+  if self.c.get('location')=='market':self.button(f,'OPEN FULL MARKET SHOP',self._open_shop,True).pack(fill='x',padx=12,pady=4)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree']):
+  for i,name in enumerate(['Character Sheet','Inventory','Shop','Abilities','Journal','Story Tree']):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
    self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
   row.grid_columnconfigure(1,weight=1)
-  txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
+  scrollregion=tk.Frame(f,bg=PARCH)
+  scrollregion.pack(fill='both',expand=True,padx=8,pady=8)
+  viewport=tk.Canvas(scrollregion,bg=PARCH,highlightthickness=0,borderwidth=0)
+  scrollbar=tk.Scrollbar(scrollregion,command=viewport.yview)
+  txt=tk.Frame(viewport,bg=PARCH)
+  window_id=viewport.create_window((0,0),window=txt,anchor='nw')
+  txt.bind('<Configure>',lambda e:viewport.configure(scrollregion=viewport.bbox('all')))
+  viewport.bind('<Configure>',lambda e:viewport.itemconfigure(window_id,width=e.width))
+  viewport.configure(yscrollcommand=scrollbar.set)
+  scrollbar.pack(side='right',fill='y')
+  viewport.pack(side='left',fill='both',expand=True)
   if self.panel=='Record':
    for k,v in h['stats'].items():self.label(txt,f'{k}      {v:>2}     ({(v-10)//2:+d})',13).pack(anchor='w',pady=2)
    self.label(txt,'Magic: '+h['magic'],12).pack(anchor='w',pady=6)
@@ -206,6 +276,17 @@ class App(tk.Tk):
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
    self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
+  elif self.panel=='Shop':
+   if self.c['location']!='market':
+    self.label(txt,'Visit the market to browse and buy supplies.',12,wraplength=260).pack(anchor='w',pady=8)
+   else:
+    self.label(txt,'YOUR GOLD: '+str(h['gold']),14).pack(anchor='w',pady=8)
+    for name,item in shop.CATALOG.items():
+     line=tk.Frame(txt,bg=PARCH)
+     line.pack(fill='x',pady=3)
+     self.label(line,name+' · '+str(item['price'])+' gold',11,wraplength=170).pack(anchor='w')
+     self.label(line,item['description'],10,wraplength=170).pack(side='left')
+     self.button(line,'BUY',lambda x=name:self._buy(x),True).pack(side='right')
   elif self.panel=='Abilities':
    for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
    if h['class']=='Mage' and h.get('magic') in spell_catalog.MAGIC_TYPES:
@@ -221,6 +302,25 @@ class App(tk.Tk):
      self.label(txt,label,11).pack(anchor='w',pady=2)
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+ def _open_shop(self):
+  def persist():
+   game.save(DATA,self.c)
+   self._adventure()
+  try:ui_shop.open_shop(self,self.c,persist)
+  except ValueError as error:messagebox.showwarning('Market',str(error))
+
+ def _open_inventory(self):
+  def persist():
+   game.save(DATA,self.c)
+   self._adventure()
+  ui_inventory.open_inventory(self,self.c,persist)
+ def _buy(self,item):
+  try:
+   shop.buy(self.c,item)
+   game.save(DATA,self.c)
+   self._adventure()
+  except ValueError as e:messagebox.showwarning('Shop',str(e))
+
  def _consume(self,item):
   try:
    game.use_item(self.c,item)
@@ -235,11 +335,31 @@ class App(tk.Tk):
    self._adventure()
   except ValueError as e:messagebox.showwarning('Adventure',str(e))
  def _free(self,text):
+  """Interpret ambiguous commands off-thread; simple actions remain instant."""
   text=text.strip()
-  if not text:return
+  if not text or self.busy or not self.c:return
+  known=interaction.interpret_simple(self.c,text)
+  literal=dungeon_master.fallback_interpret(text)['kind']
+  if known is not None or literal in ('travel','fight','cast','use_item'):
+   self._resolve_action(text)
+   return
+  self.busy=True
+  self._intent_generation+=1
+  token=self._intent_generation
+  campaign_id=self.c['id']
+  snapshot=json.loads(json.dumps(self.c))
+  outbox=self.q
+  if hasattr(self,'dm_status') and self.dm_status.winfo_exists():
+   self.dm_status.config(text='Dungeon Master is interpreting your action...')
+  def worker():
+   intent=dungeon_master.interpret(text,timeout=8,context=snapshot)
+   outbox.put(('intent',(campaign_id,token,text,intent)))
+  threading.Thread(target=worker,daemon=True).start()
+ def _resolve_action(self,text,intent=None):
+  if not self.c:return
   try:
    had_enemy=bool(self.c.get('enemy'))
-   result=interaction.perform(self.c,text)
+   result=interaction.perform(self.c,text,intent=intent)
    hero=self.c['characters'][self.c['active']]
    if result['roll_required']:
     visual=visual_mapping.cue_for(hero,result)
@@ -247,14 +367,18 @@ class App(tk.Tk):
    else:
     self.last_visual_cue=None
     self.animation_director.clear()
-   game.save(DATA,self.c)
    if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
-    story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
+    story.ensure(self.c)['stage']=4
+    self.c['history'].append('The guardian has fallen. The way back to Elder Sera is clear.')
+   game.save(DATA,self.c)
    if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
    self._adventure()
    if result['roll_required']:self._roll_display(result)
    self._narrate(result['result'])
-  except ValueError as e:messagebox.showwarning('Action',str(e))
+  except ValueError as e:
+   messagebox.showwarning('Action',str(e))
+   if hasattr(self,'dm_status') and self.dm_status.winfo_exists():
+    self.dm_status.config(text='Ready for your next action')
  def _roll_display(self,result):
   win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
   outer,f=self.card(win,'The Twenty-Sided Die');outer.pack(fill='both',expand=True,padx=16,pady=14)
@@ -272,6 +396,7 @@ class App(tk.Tk):
  def _narrate(self,resolved):
   if self.busy:return
   self.busy=True;identity=self.c['id'];snapshot=json.loads(json.dumps(self.c))
+  if hasattr(self,'dm_status') and self.dm_status.winfo_exists():self.dm_status.config(text='Dungeon Master is responding...')
   def worker():
    try:message=ai.narrate(snapshot,resolved)
    except Exception:message='The Dungeon Master is unavailable. Your dice results and campaign remain saved.'
@@ -316,9 +441,9 @@ class App(tk.Tk):
    while True:
     kind,value=self.q.get_nowait()
     if kind=='services':
-     popup,label,result=value
-     if popup.winfo_exists():
-      label.config(text='\n'.join(k.title()+': '+v['message'] for k,v in result.items()))
+     target=getattr(self,'_connections_target',None)
+     if target and target[0].winfo_exists():
+      target[1].config(text='\n'.join(k.title()+': '+v['message'] for k,v in value.items()))
     if kind=='generated':
      popup,label,place,path,error=value
      if popup.winfo_exists():
@@ -339,11 +464,17 @@ class App(tk.Tk):
      if status=='updated':
       if self.c:self._adventure()
       else:self._home()
+    if kind=='intent':
+     campaign_id,token,text,intent=value
+     if self.c and self.c['id']==campaign_id and token==self._intent_generation:
+      self.busy=False
+      self._resolve_action(text,intent)
     if kind=='story':
      self.busy=False
+     if hasattr(self,'dm_status') and self.dm_status.winfo_exists():self.dm_status.config(text='Ready for your next action')
      if self.c and self.c['id']==value[0]:
       self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
   except queue.Empty:pass
-  self.after(400,self._poll)
+  if not self._closing and self.winfo_exists():self._poll_job=self.after(400,self._poll)
  def _exit(self):game.save(DATA,self.c);self._home()
 if __name__=='__main__':App().mainloop()

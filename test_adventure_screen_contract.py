@@ -18,9 +18,10 @@ class AdventureScreenContractTests(unittest.TestCase):
   for label in ('Character Sheet','Inventory','Abilities','Journal','Story Tree'):
    self.assertIn(label,sidebar)
  def test_roll_only_on_checked_action(self):
-  handler=self.methods['_free']
-  self.assertIn("interaction.perform(self.c,text)",handler)
+  handler=self.methods['_resolve_action']
+  self.assertIn("interaction.perform(self.c,text,intent=intent)",handler)
   self.assertIn("if result['roll_required']:self._roll_display(result)",handler)
+  self.assertIn("dungeon_master.interpret(text,timeout=8,context=snapshot)",self.methods['_free'])
  def test_controls_are_explicitly_painted(self):
   button=self.methods['button']
   self.assertIn('tk.Label(',button)

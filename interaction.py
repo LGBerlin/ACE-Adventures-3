@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story
+import game,story,dungeon_master
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -38,18 +38,56 @@ def interpret_simple(c,text):
         return 'encounter'
     return None
 
-def perform(c,text,rng=None):
+def perform(c,text,rng=None,intent=None):
+    """A successful harmless action never rolls; rules decide risky outcomes."""
     text=text.strip()
     if not text:raise ValueError('Describe what you want to do.')
     if not c.get('started'):raise ValueError('Start the campaign first.')
+    hero=c['characters'][c['active']]
+    if hero['hp']<=0:raise ValueError('This character is incapacitated.')
+    # Known Support spells are actual utility actions, not fake weapon attacks.
+    if hero.get('class')=='Mage' and hero.get('magic')=='Support':
+        for spell in ('Healing Wave','Protective Aura'):
+            if spell in hero.get('moves',[]) and re.search(r'(?<!\\w)'+re.escape(spell.lower())+r'(?!\\w)',text.lower()):
+                return {'roll_required':False,'result':game.cast_utility(c,spell,rng),'action':text}
     choice=interpret_simple(c,text)
     if choice is not None:
         outcome=story.select(c,choice)
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
-    if c.get('enemy') is None and re.fullmatch(r'(?:hello|hi|hey|thank you|thanks|look around|look at the scenery|wait|rest|sit down|listen)',text,re.I):
-        msg='You '+text.lower().rstrip('.')+'.'
-        c['history'].append(msg);c['turn']+=1
-        return {'roll_required':False,'result':msg,'action':text}
+    intent=dungeon_master.validate_intent(intent,text)
+    literal=dungeon_master.fallback_interpret(text)
+    kind=literal['kind'] if literal['kind'] in ('fight','cast','travel','trade','use_item') else intent['kind']
+    # Model proposals must pass the same deterministic location and quest gates.
+    target=intent.get('target','').strip().casefold()
+    if kind=='travel':
+        place=next((key for key,aliases in LOCATION_WORDS.items() if target==key or target in aliases),None)
+        if place is not None:
+            choice=interpret_simple(c,'go to '+place)
+            if choice is not None:
+                return {'roll_required':False,'result':story.select(c,choice),'choice':choice,'action':text}
+    if kind=='use_item':
+        item=next((name for name in ('Healing Draught','Health Potion') if name.casefold() in text.casefold()),None)
+        if item is None:raise ValueError('Name the item to use from your inventory.')
+        return {'roll_required':False,'result':game.use_item(c,item),'action':text}
+    if not c.get('enemy'):
+        if kind=='travel':raise ValueError('Choose an available destination and tell the Dungeon Master where to go.')
+        if kind=='fight':raise ValueError('There is no opponent here.')
+        if kind=='trade':raise ValueError('Visit the market and use the Shop tab.')
+        uncertain=bool(re.search(r'\b(persuade|convince|negotiate|bargain|sneak|hide|climb|pickpocket|disarm|steal|force|jump)\b|\bpick\s+(?:the\s+|a\s+)?lock\b|\bsearch\b.*\b(hidden|trap|secret|clue)\b',text,re.I))
+        if kind not in ('cast',) and not uncertain:
+            if kind=='speak':
+                npcs=dungeon_master.available_npcs(c)
+                if not npcs:raise ValueError('There is nobody here to speak with.')
+                npc=next(iter(npcs))
+                message=npcs[npc]['name']+' listens. '+story.DEFAULT_FLAVOUR.get(c.get('location'),'')
+                dungeon_master.remember(c,npc,text,message)
+            elif kind=='investigate':
+                message=story.DEFAULT_FLAVOUR.get(c.get('location'),'You examine your surroundings.')
+            else:
+                ordinary=re.sub(r'^(?:i\s+)?(?:want to |would like to |will |am going to )?','',text,flags=re.I).rstrip('.!?')
+                message='You '+ordinary[:1].lower()+ordinary[1:]+'. '+story.DEFAULT_FLAVOUR.get(c.get('location'),'')
+            c['history'].append(message);c['turn']+=1
+            return {'roll_required':False,'result':message,'action':text}
     result=game.action(c,text,rng)
     result['roll_required']=True
     return result
