@@ -19,7 +19,7 @@ class CharacterSheetUITests(unittest.TestCase):
      collect(ch)
    collect(win)
    combined=' '.join(labels)
-   for entry in ('STR','DEX','CON','INT','WIS','CHA','INVENTORY','ABILITIES','29','Arlen'):
+   for entry in ('STR','DEX','CON','INT','WIS','CHA','INVENTORY','ABILITIES','29','ARLEN'):
     self.assertIn(entry,combined)
    self.assertGreater(win.winfo_width(),450)
    win.destroy()
