@@ -87,14 +87,14 @@ def select_character_sprite(registry,character,category='portrait'):
         raise ValueError('Unsupported character sprite category')
     cls=str(character.get('class','Fighter')).lower()
     path=str(character.get('path','')).lower()
-    keys=registry.choose(category,**{'class':cls,'path':path})
-    if not keys:
-        keys=registry.choose(category,**{'class':cls})
-    if not keys:return None
     seed=str(character.get('sprite_seed',character.get('id',character.get('name',''))))
-    index=int.from_bytes(hashlib.sha256((cls+'|'+path+'|'+seed).encode()).digest()[:8],'big')%len(keys)
-    # Deterministic alternate selection if a listed image was removed or corrupted.
-    for offset in range(len(keys)):
-        key=keys[(index+offset)%len(keys)]
-        if registry.bytes(key) is not None:return key
+    # A listed but damaged path sprite must not prevent a valid class fallback.
+    for specificity,keys in (
+        ('path',registry.choose(category,**{'class':cls,'path':path})),
+        ('class',registry.choose(category,**{'class':cls}))):
+        if not keys:continue
+        index=int.from_bytes(hashlib.sha256((cls+'|'+path+'|'+seed+'|'+specificity).encode()).digest()[:8],'big')%len(keys)
+        for offset in range(len(keys)):
+            key=keys[(index+offset)%len(keys)]
+            if registry.bytes(key) is not None:return key
     return None
