@@ -35,6 +35,7 @@ def award_experience(hero,amount):
     """Award XP via verified game rules, never from LLM narration."""
     if not isinstance(amount,int) or isinstance(amount,bool) or amount<0 or amount>10000:
         raise ValueError('Invalid experience award')
+    if hero['level']>=100:return []
     hero['xp']+=amount
     changes=[]
     while hero['level']<100 and hero['xp']>=70*hero['level']+12*hero['level']**2:
@@ -65,6 +66,7 @@ def award_experience(hero,amount):
                 if name not in hero['moves']:
                     hero['moves'].append(name)
                     changes.append(name)
+    if hero['level']==100:hero['xp']=0
     return changes
 
 def new_campaign(title,players):
