@@ -14,5 +14,12 @@ The goal is a story-driven D20 adventure with campaigns, permanent character cre
 **No source-only ZIP is a Mac application.** The build workflow deliberately fails when the full source is missing.
 
 
-## Current native build status (October 2026)
-A self-contained **experimental** Mac launch baseline is in `app.py`. It supports campaigns, permanent rolled characters, a short quest, D20 combat, saves, local Ollama narration, and service diagnostics for Ollama/ComfyUI. It does **not** yet contain the illustrated prototype's complete visual and gameplay systems, ComfyUI image-generation workflow, full add-on updater, or the full acceptance-test suite. A successful packaging job does not mean that this is the final game.
+## Phase 1 baseline status (October 2026)
+
+The **Phase 1 functional baseline and repository-wide integration audit** are implemented on development branch `feature/tabletop-ui-shop-20261012`. GitHub Actions on `macos-15` runs the isolated automated test suite, native Apple Silicon app packaging, graphical startup smoke tests, and idle-resource check.
+
+Implemented gameplay includes: four classes, 17 paths, 14 magic schools, character roulette and level-100 progression; free-text D20 actions; quests capped at two active assignments, townsfolk and guild progression; party combat, bosses and loot; weapons/armor/trinkets, enchantments, scrolls, trading; persistent saves and content update/rollback; local Ollama narration with a deterministic state-changing rules engine.
+
+**Phase 1 functionality is not a notarized public release.** Automated tests cannot establish the quality or latency of a real Ollama model over a long session on the player's Mac. The built-in app-release checker requires manual app installation; it cannot update binaries automatically. Final signed/notarized delivery and pixel-perfect concept-art visuals are not covered by the Phase 1 baseline.
+
+See [PHASE 1 Integration Audit.md](PHASE%201%20Integration%20Audit.md) for the actual covered tests and outstanding device-specific acceptance checks. Phase 2 is the planned visual redesign, not yet a completed art pack.
