@@ -2,13 +2,13 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections
+import game,ai,story,art,ai_connections,addon_updates
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self._home();self.after(150,self._poll)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._home();self.after(150,self._poll);self.after(5000,self._check_content_updates)
  def clear(self):
   for widget in self.winfo_children():widget.destroy()
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
@@ -32,6 +32,8 @@ class App(tk.Tk):
   status=self.label(inside,'Checking Ollama and ComfyUI on this Mac...',13,wraplength=460)
   status.pack(anchor='w',padx=12,pady=16)
   self.label(inside,'Ollama: storytelling and action interpretation\nComfyUI: optional offline artwork generation (not live gameplay)',11,wraplength=450).pack(anchor='w',padx=12)
+  self.label(inside,'Content updates: '+self.update_status,11,wraplength=450).pack(anchor='w',padx=12,pady=4)
+  self.button(inside,'CHECK FOR CONTENT UPDATES',self._check_content_updates,True).pack(padx=12,pady=4)
   def worker():
    result=ai_connections.all_statuses(timeout=2)
    self.q.put(('services',(popup,status,result)))
@@ -96,6 +98,7 @@ class App(tk.Tk):
   outer,f=self.card(left,'Ashwood Encounter' if self.c.get('enemy') else story.PLACES[self.c['location']][0]);outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,height=300,bg=DARK,highlightthickness=0);cv.pack(fill='x',padx=12,pady=12);cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
   self.label(f,story.journal(self.c),17,wraplength=660).pack(anchor='w',padx=18,pady=7)
+  self.label(f,story.flavour(self.c,DATA),12,wraplength=660).pack(anchor='w',padx=18,pady=4)
   history=self.c['history'][-3:] or ['Your party enters Briarhollow. A bell tolls, although the tower stands empty.']
   self.label(f,'\n\n'.join(history),13,wraplength=660).pack(anchor='w',padx=18,pady=8)
   actions=tk.Frame(f,bg=PARCH);actions.pack(fill='x',padx=15,pady=10)
@@ -166,6 +169,12 @@ class App(tk.Tk):
    except Exception:message='The Dungeon Master is unavailable. Your dice results and campaign remain saved.'
    self.q.put(('story',(identity,message)))
   threading.Thread(target=worker,daemon=True).start()
+ def _check_content_updates(self):
+  """Network and disk activity happen outside Tk's event loop."""
+  def worker():
+   result=addon_updates.check_and_install(DATA)
+   self.q.put(('updates',result))
+  threading.Thread(target=worker,daemon=True).start()
  def _poll(self):
   try:
    while True:
@@ -174,6 +183,13 @@ class App(tk.Tk):
      popup,label,result=value
      if popup.winfo_exists():
       label.config(text='\n'.join(k.title()+': '+v['message'] for k,v in result.items()))
+    if kind=='updates':
+     status,version=value
+     self.update_status=('Art and stories updated to '+version if status=='updated' else
+                         'Current: '+version if status=='current' else 'Offline / updates unavailable')
+     if status=='updated':
+      if self.c:self._adventure()
+      else:self._home()
     if kind=='story':
      self.busy=False
      if self.c and self.c['id']==value[0]:
