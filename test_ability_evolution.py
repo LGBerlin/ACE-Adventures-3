@@ -37,7 +37,7 @@ class AbilityEvolutionTests(unittest.TestCase):
                     with self.subTest(path=path,level=level):
                         self.assertIn(entry['name'],hero['moves'])
                         self.assertEqual(cue['name'],entry['name'])
-                        self.assertEqual(cue['tier'],tier)
+                        self.assertEqual(cue['tier'],max(tier,ability_progression.tier(hero,entry['name'])))
     def test_locked_ability_never_receives_upgraded_visual(self):
         hero=game.character('Aster',23,'Fighter',random.Random(2))
         entry=technique_catalog.catalog(hero['path'])[-1]
