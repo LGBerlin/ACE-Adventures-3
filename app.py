@@ -2,6 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
+import merchant
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
@@ -172,6 +173,16 @@ class App(tk.Tk):
   history.insert('1.0','\\n\\n'.join(lines))
   history.configure(state='disabled')
   history.see('end')
+  if self.c.get('enemy'):
+   foe=self.c['enemy']
+   battle=tk.Frame(f,bg='#513322',highlightbackground=BRASS,highlightthickness=2)
+   battle.pack(fill='x',padx=14,pady=5)
+   self.label(battle,f"⚔ BATTLE · {foe['name']} · HP {foe['hp']}/{foe.get('max_hp',foe['hp'])}",13,LIGHT,'#513322').pack(anchor='w',padx=10,pady=5)
+   actions=tk.Frame(battle,bg='#513322');actions.pack(fill='x',padx=8,pady=4)
+   for caption,command in [('ATTACK','I attack the enemy'),('GUARD','I guard'),('NEGOTIATE','I negotiate')]:
+    self.button(actions,caption,lambda command=command:self._free(command),True).pack(side='left',padx=4)
+  if self.busy:
+   self.label(f,'The Dungeon Master is preparing the next passage...',11).pack(anchor='w',padx=16,pady=3)
   self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
   row=tk.Frame(f,bg=PARCH)
   row.pack(fill='x',padx=13,pady=(0,12))
@@ -190,7 +201,7 @@ class App(tk.Tk):
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree']):
+  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree','Shop']):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
    self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
@@ -219,8 +230,31 @@ class App(tk.Tk):
     for entry in technique_catalog.catalog(h['path']):
      label=('✦  ' if entry['name'] in unlocked else '◇  ')+entry['name']+'  ·  Level '+str(entry['level'])
      self.label(txt,label,11).pack(anchor='w',pady=2)
+  elif self.panel=='Shop':
+   if not merchant.available(self.c):
+    self.label(txt,"Visit Yarrow's Apothecary to trade. No trading during combat.",12,wraplength=260).pack(anchor='w',pady=8)
+   else:
+    self.label(txt,f"PURSE · {h['gold']} gold",14).pack(anchor='w',pady=6)
+    for item,detail in merchant.CATALOG.items():
+     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=3)
+     self.label(line,f"{item} · {detail['price']}g",10).pack(side='left')
+     self.button(line,'BUY',lambda item=item:self._trade('buy',item),True).pack(side='right')
+    self.label(txt,'SELL FROM PACK',12).pack(anchor='w',pady=6)
+    for item in sorted(set(h['inventory'])):
+     if item not in merchant.CATALOG:continue
+     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+     self.label(line,item,10).pack(side='left')
+     self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+ def _trade(self,operation,item):
+  try:
+   if operation=='buy':merchant.buy(self.c,item)
+   elif operation=='sell':merchant.sell(self.c,item)
+   else:raise ValueError('Unknown trade action.')
+   game.save(DATA,self.c)
+   self._adventure()
+  except ValueError as exc:messagebox.showwarning("Yarrow's Apothecary",str(exc))
  def _consume(self,item):
   try:
    game.use_item(self.c,item)
