@@ -1,0 +1,42 @@
+name: Stage Sprite Library Candidates
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download original sprite release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p source
+          gh release download assets-v1 --repo "${{ github.repository }}" --pattern 'sprites.2.zip' --dir source
+      - name: Stage capped sprite candidate collection
+        run: |
+          python -m pip install --quiet Pillow
+          python stage_sprite_candidates.py source/sprites.2.zip 'staged candidates'
+      - name: Verify provenance and safe bundle size
+        run: |
+          python - <<'PY'
+          import json,pathlib
+          root=pathlib.Path('staged candidates')
+          data=json.loads((root/'candidate report.json').read_text())
+          assert data['release_approved'] is False
+          assert 0 < data['candidate_count'] <= 180
+          for row in data['candidates']:
+              path=(root/row['file']).resolve()
+              assert path.is_relative_to(root.resolve())
+              assert path.is_file() and path.stat().st_size<=2_000_000
+              assert row['original'] and row['pack'] and len(row['sha256'])==64
+          print('Traceable candidates staged:',data['candidate_count'])
+          PY
+      - name: Upload unapproved review collection
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACE Adventures 3 Sprite Candidates Unreviewed
+          path: staged candidates/
+          retention-days: 30
