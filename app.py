@@ -17,8 +17,9 @@ class App(tk.Tk):
    except (OSError,ValueError):pass
  def _portrait(self,canvas,hero):
   """Static image only; never start a render loop in the story screen."""
-  key=hero.get('appearance_id') or asset_registry.appearance_id(hero)
-  source=self.asset_pack.bytes(key)
+  key=asset_registry.select_character_sprite(self.asset_pack,hero,'portrait')
+  if key is None:key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
+  source=self.asset_pack.bytes(key) if key else None
   if source:
    try:
     from PIL import Image,ImageTk
