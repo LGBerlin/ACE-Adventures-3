@@ -36,7 +36,16 @@ class App(tk.Tk):
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
   return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
  def button(self,parent,text,fn,light=False):
-  return tk.Button(parent,text=text,command=fn,font=('Georgia',12,'bold'),bg=PARCH if light else WOOD,fg=INK if light else LIGHT,activebackground=BRASS,activeforeground=INK,relief='raised',bd=3,highlightthickness=1,highlightbackground=BRASS,padx=12,pady=8,cursor='hand2')
+  """Paint consistent high-contrast controls; macOS native buttons ignore bg."""
+  bg='#f3e0b9' if light else '#553824'
+  fg='#31251b' if light else '#fff1cf'
+  control=tk.Label(parent,text=text,font=('Georgia',11,'bold'),bg=bg,fg=fg,
+                   relief='raised',bd=2,highlightthickness=1,highlightbackground=BRASS,
+                   padx=11,pady=8,cursor='hand2',takefocus=True)
+  control.bind('<ButtonRelease-1>',lambda event:fn() if control.winfo_containing(event.x_root,event.y_root)==control else None)
+  control.bind('<Return>',lambda event:fn())
+  control.bind('<space>',lambda event:fn())
+  return control
  def page(self,title):
   self.clear();bar=tk.Frame(self,bg='#33261e',height=72);bar.pack(fill='x')
   self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,'#33261e').pack(side='left',padx=20,pady=12)
