@@ -35,11 +35,8 @@ class FullCampaignJourney(unittest.TestCase):
         response=interaction.perform(self.c,"I attack the guardian",Certain())
         self.assertTrue(response["roll_required"])
         self.assertIsNone(self.c["enemy"])
-        # Current UI applies this transition after combat resolution; verify
-        # the same transition in this acceptance test without bypassing gates.
-        if story.ensure(self.c)["stage"]==3:
-            story.ensure(self.c)["stage"]=4
-            self.c["location"]="square"
+        self.assertEqual(story.ensure(self.c)["stage"],4)
+        self.assertEqual(self.c["location"],"square")
         self.action("talk to Elder Sera")
         self.assertTrue(story.ensure(self.c)["completed"])
         with tempfile.TemporaryDirectory() as folder:
