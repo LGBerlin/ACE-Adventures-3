@@ -37,8 +37,8 @@ def award_experience(hero,amount):
         raise ValueError('Invalid experience award')
     hero['xp']+=amount
     changes=[]
-    while hero['level']<20 and hero['xp']>=70*hero['level']:
-        hero['xp']-=70*hero['level']
+    while hero['level']<100 and hero['xp']>=70*hero['level']+12*hero['level']**2:
+        hero['xp']-=70*hero['level']+12*hero['level']**2
         hero['level']+=1
         hero['max_hp']+=3
         hero['hp']=min(hero['max_hp'],hero['hp']+3)
