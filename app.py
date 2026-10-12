@@ -36,6 +36,27 @@ class App(tk.Tk):
    except (ImportError,OSError,ValueError,tk.TclError):pass
   canvas.create_rectangle(8,8,237,173,outline=BRASS,width=2)
   art.character(canvas,78,28,hero['class'],hero['sprite_seed'],4)
+ def _battle_character(self,canvas,hero,x,y,size):
+  """Use approved body artwork in combat, preserving stable character identity."""
+  key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
+  if key is None:key=asset_registry.select_character_sprite(self.asset_pack,hero,'idle')
+  content=self.asset_pack.bytes(key) if key else None
+  if content:
+   try:
+    from PIL import Image,ImageTk
+    with Image.open(BytesIO(content)) as raw:
+     frame=raw.convert('RGBA')
+     # Sheets store cells in the first frame; never display the entire atlas.
+     if frame.width>=64 and frame.height>=64 and (frame.width>128 or frame.height>128):
+      frame=frame.crop((0,0,64,64))
+     frame.thumbnail((max(48,78*size),max(48,82*size)))
+     photo=ImageTk.PhotoImage(frame,master=canvas)
+    canvas.create_image(x,y,image=photo,anchor='center')
+    canvas._ace_characters=getattr(canvas,'_ace_characters',[])+[photo]
+    return True
+   except (ImportError,OSError,ValueError,tk.TclError):pass
+  art.character(canvas,x-14*size,y-14*size,hero['class'],hero['sprite_seed'],size)
+  return False
  def clear(self):
   for widget in self.winfo_children():widget.destroy()
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
@@ -126,12 +147,12 @@ class App(tk.Tk):
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');w=max(10,cv.winfo_width());h=max(10,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  cv.delete('all');cv._ace_characters=[];w=max(10,cv.winfo_width());h=max(10,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
    size=max(1,min(3,int(h/120)))
    cv.create_oval(round(w*.08),round(h*.78),round(w*.34),round(h*.84),fill='#403c35',outline='#c5a16e',width=2)
-   art.character(cv,round(w*.15),round(h*.32),hero['class'],hero['sprite_seed'],size)
+   self._battle_character(cv,hero,round(w*.21),round(h*.55),size)
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
    cv.create_oval(round(w*.67),round(h*.79),round(w*.91),round(h*.85),fill='#403c35',outline='#c5a16e',width=2)
