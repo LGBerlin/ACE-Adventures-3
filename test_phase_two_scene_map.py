@@ -36,7 +36,7 @@ class SceneAndMapTest(unittest.TestCase):
     scene=next(cv for cv in self.all_widgets(window) if isinstance(cv,tk.Canvas) and cv.winfo_width()>400)
     window._scene(scene,'forest')
     self.assertGreater(len(scene.find_all()),10)
-    self.assertTrue(any('Hollow Guardian' in str(scene.itemcget(item,'text')) for item in scene.find_withtag('all')))
+    self.assertTrue(any('Hollow Guardian' in scene.itemcget(item,'text') for item in scene.find_withtag('all') if scene.type(item)=='text'))
     c['enemy']=None;c['location']='square'
     window._panel('Map');window.update_idletasks()
     maps=[cv for cv in self.all_widgets(window) if isinstance(cv,tk.Canvas) and 'place_square' in cv.gettags('place_square')]
