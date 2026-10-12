@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story
+import game,story,dice_ledger
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -52,4 +52,5 @@ def perform(c,text,rng=None):
         return {'roll_required':False,'result':msg,'action':text}
     result=game.action(c,text,rng)
     result['roll_required']=True
+    dice_ledger.record(c,result,text)
     return result
