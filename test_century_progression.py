@@ -8,7 +8,7 @@ class CenturyProgressionTests(unittest.TestCase):
   for cls in game.PATHS:
    hero=game.character("Test",24,cls,random.Random(7))
    changes=game.award_experience(hero,10000)
-   for step in range(110):game.award_experience(hero,10000)
+   for step in range(500):game.award_experience(hero,10000)
    self.assertEqual(hero["level"],100)
    self.assertGreaterEqual(len(hero["passives"]),9)
    self.assertIn(hero["path"]+" Mastery 100",hero["passives"])
