@@ -2,13 +2,34 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,comfy_art
+import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry
+from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._home();self.after(150,self._poll);self.after(5000,self._check_content_updates)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(150,self._poll);self.after(5000,self._check_content_updates)
+ def _load_asset_index(self):
+  index=DATA/'approved sprites'/'manifest.json'
+  if index.is_file():
+   try:self.asset_pack.load(index)
+   except (OSError,ValueError):pass
+ def _portrait(self,canvas,hero):
+  """Static image only; never start a render loop in the story screen."""
+  key=hero.get('appearance_id') or asset_registry.appearance_id(hero)
+  source=self.asset_pack.bytes(key)
+  if source:
+   try:
+    from PIL import Image,ImageTk
+    with Image.open(BytesIO(source)) as img:
+     img.thumbnail((168,168))
+     photo=ImageTk.PhotoImage(img.copy(),master=canvas)
+    canvas.create_image(122,90,image=photo)
+    canvas.image=photo
+    return
+   except (ImportError,OSError,ValueError,tk.TclError):pass
+  art.character(canvas,78,28,hero['class'],hero['sprite_seed'],4)
  def clear(self):
   for widget in self.winfo_children():widget.destroy()
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
@@ -111,7 +132,7 @@ class App(tk.Tk):
   self._sidebar(right)
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);art.character(cv,78,28,h['class'],h['sprite_seed'],4)
+  cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
   self.label(f,h['name'],20).pack(padx=14)
   self.label(f,h['race']+' · '+h['path']+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
