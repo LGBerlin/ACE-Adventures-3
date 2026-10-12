@@ -16,19 +16,25 @@ JOBS={
  "Supply Run":{"goal":"market","reward_gold":6,"reward_xp":8},
  "Tavern Errand":{"goal":"tavern","reward_gold":5,"reward_xp":8},
  "Village Patrol":{"goal":"tavern","reward_gold":7,"reward_xp":10},
+ "Herbalist Consultation":{"goal":"market","npc":"Yarrow","reward_gold":9,"reward_xp":12},
+ "Inn Rumors":{"goal":"tavern","npc":"Tomas","reward_gold":8,"reward_xp":10},
 }
 def talk(c,name):
  if not c.get("started") or c.get("enemy"):raise ValueError("Conversation is unavailable.")
  person=next((person for person in PEOPLE if person.casefold()==str(name).casefold()),None)
  if person is None or PEOPLE[person]["place"]!=c["location"]:raise ValueError("That townsfolk member is not here.")
  msg=person+": "+PEOPLE[person]["line"]
+ job=c.get("guild_job")
+ if job and JOBS[job["name"]].get("npc")==person and c.get("location")==JOBS[job["name"]]["goal"] and c.get("turn",0)>job["start_turn"]:
+  job["spoke_to_target"]=True
+  msg+=" You have gathered the information for your guild assignment."
  c["history"].append(msg);c["turn"]+=1
  return msg
 def accept(c,name):
  if not c.get("started") or c.get("enemy") or c.get("location")!="square":raise ValueError("Visit the guild captain in the square.")
  if name not in JOBS:raise ValueError("Unknown guild job.")
  if c.get("guild_job"):raise ValueError("Only one guild assignment can accompany the main quest: two active quests maximum.")
- c["guild_job"]={"name":name,"start_turn":c["turn"],"origin":c["location"],"visited_goal":False}
+ c["guild_job"]={"name":name,"start_turn":c["turn"],"origin":c["location"],"visited_goal":False,"spoke_to_target":False}
  c["history"].append("Accepted guild job: "+name)
  c["turn"]+=1
  return c["history"][-1]
@@ -42,7 +48,7 @@ def complete(c):
  job=c.get("guild_job")
  if not job:raise ValueError("No active guild job.")
  details=JOBS[job["name"]]
- if c.get("enemy") or not job.get("visited_goal"):
+ if c.get("enemy") or not job.get("visited_goal") or (details.get("npc") and not job.get("spoke_to_target")):
   raise ValueError("Visit the guild destination before collecting a reward.")
  if c.get("location")!="square":
   raise ValueError("Return to Captain Rowan in the square to claim your reward.")
@@ -74,3 +80,19 @@ def active_quests(c):
  if c.get("guild_job"):
   quests.append({"name":c["guild_job"]["name"],"kind":"guild"})
  return quests[:2]
+
+def quest_status(c):
+ """Read-only quest objectives, safe for narration and free-text status commands."""
+ entries=active_quests(c)
+ job=c.get("guild_job")
+ if job:
+  spec=JOBS[job["name"]]
+  if not job.get("visited_goal"):
+   objective="Travel to the "+spec["goal"]
+  elif spec.get("npc") and not job.get("spoke_to_target"):
+   objective="Speak with "+spec["npc"]
+  else:
+   objective="Return to Captain Rowan in the square"
+  for entry in entries:
+   if entry["kind"]=="guild":entry["objective"]=objective
+ return entries
