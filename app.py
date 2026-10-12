@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry
+import game,ai,story,art,ai_connections,addon_updates,comfy_art,asset_registry,story_tree
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
@@ -137,7 +137,7 @@ class App(tk.Tk):
   self.label(f,h['path']+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for name in ['Record','Pack','Abilities','Journal']:
+  for name in ['Record','Pack','Abilities','Journal','Story Tree']:
    self.button(row,name,lambda x=name:self._panel(x),True).pack(side='left',expand=True,fill='x',padx=2)
   txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
   if self.panel=='Record':
@@ -152,6 +152,7 @@ class App(tk.Tk):
    self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
   elif self.panel=='Abilities':
    for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
+  elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
  def _consume(self,item):
   try:
