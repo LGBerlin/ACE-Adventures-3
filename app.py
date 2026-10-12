@@ -139,8 +139,8 @@ class App(tk.Tk):
      cx,cy=round(w*.47),round(h*.46)
      for index in range(tier):
       radius=24+index*16
-      cv.create_oval(cx-radius,cy-radius,cx+radius,cy+radius,outline='#ffcf70' if tier==2 else '#9ee7ef',width=2+index)
-     cv.create_text(cx,cy,text='✦' if tier==2 else '✧',fill='#fff5ce',font=('Georgia',27,'bold'))
+      cv.create_oval(cx-radius,cy-radius,cx+radius,cy+radius,outline='#ffcf70' if tier==2 else '#9ee7ef' if tier==3 else '#c8a2ff',width=2+index)
+     cv.create_text(cx,cy,text='✦' if tier==2 else '✧' if tier==3 else '✺',fill='#fff5ce',font=('Georgia',27,'bold'))
  def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page('The Hollow Bell')
