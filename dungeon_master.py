@@ -94,7 +94,7 @@ def prompt_context(c,result):
     w=ensure_world(copy.deepcopy(c))
     import town_services
     return {'campaign':c.get('title'), 'chapter':w['chapter'], 'location':c.get('location'),
-            'active_quests':town_services.active_quests(c),
+            'active_quests':town_services.quest_status(c),
             'last_enchantment':c.get('last_enchant_spin'),
             'last_loot':c.get('loot_history',[])[-3:],
             'quest':c.get('quest',{}), 'party':[
