@@ -1,6 +1,9 @@
 name: Stage Sprite Library Candidates
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/stage-sprite-candidates.yml'
 permissions:
   contents: read
 jobs:
