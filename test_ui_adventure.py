@@ -21,6 +21,7 @@ class IllustratedWindowFlow(unittest.TestCase):
      elif place=='forest':story.select(c,'runes');story.select(c,'forest')
      root._adventure();root.update_idletasks()
      self.assertTrue(any(isinstance(w,tk.Canvas) for w in self._walk(root)))
+    root._panel('Abilities');root.update_idletasks()
     root._panel('Pack');root.update_idletasks()
     root._panel('Journal');root.update_idletasks()
     root._panel('Map');root.update_idletasks()
