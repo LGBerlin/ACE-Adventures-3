@@ -68,10 +68,11 @@ def select(c,choice):
         import game
         game.encounter(c);msg='The Hollow Guardian emerges to bar your passage.'
     elif choice in ('attack','guard','negotiate') and c.get('enemy'):
-        import game
-        text={'attack':'I attack the Hollow Guardian','guard':'I defend myself and watch the guardian','negotiate':'I try to persuade the guardian to stand down'}[choice]
-        result=game.action(c,text);msg=result['result']
-        if not c.get('enemy'):q['stage']=4;c['location']='square';msg+=' The guardian falls. Return to Elder Sera.'
+        # Legacy story buttons must use the same authoritative pipeline as
+        # free text: dice history, boss checks, XP, loot and quest progression.
+        import interaction
+        command={'attack':'I attack the enemy','guard':'I guard','negotiate':'I negotiate'}[choice]
+        return interaction.perform(c,command)['result']
     else:raise ValueError('That action is unavailable here.')
     npc={'elder':'sera','mira':'mira','yarrow':'yarrow'}.get(choice)
     if npc:dungeon_master.remember(c,npc,choice,msg)
