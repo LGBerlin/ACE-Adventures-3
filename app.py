@@ -1,5 +1,5 @@
 """ACE Adventures 3 illustrated story-first native Tk interface."""
-import json,queue,threading,tkinter as tk
+import json,queue,threading,tkinter as tk,sys
 from tkinter import messagebox
 from pathlib import Path
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop
@@ -20,10 +20,17 @@ class App(tk.Tk):
    self._poll_job=None
   super().destroy()
  def _load_asset_index(self):
-  index=DATA/'approved sprites'/'manifest.json'
-  if index.is_file():
-   try:self.asset_pack.load(index)
-   except (OSError,ValueError):pass
+  """Load verified user-approved artwork first; then bundled licensed starter art."""
+  bundle=Path(getattr(sys,'_MEIPASS',Path(__file__).resolve().parent))
+  for root in (DATA/'approved sprites',bundle/'assets'/'starter'):
+   manifest=root/'manifest.json'
+   if not manifest.is_file():continue
+   try:
+    registry=asset_registry.Registry(root,max_cache_bytes=16*1024*1024)
+    registry.load(manifest)
+    self.asset_pack=registry
+    return
+   except (OSError,ValueError):continue
  def _portrait(self,canvas,hero):
   """Static image only; never start a render loop in the story screen."""
   key=asset_registry.select_character_sprite(self.asset_pack,hero,'portrait')
@@ -131,17 +138,50 @@ class App(tk.Tk):
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height())
+  battle=bool(self.c and self.c.get('enemy'))
+  key=next(iter(self.asset_pack.choose('background',location='battle' if battle else place)),None)
+  painted=False
+  if key:
+   data=self.asset_pack.bytes(key)
+   if data:
+    try:
+     from PIL import Image,ImageTk,ImageOps
+     with Image.open(BytesIO(data)) as im:
+      fitted=ImageOps.fit(im.convert('RGBA'),(w,h),method=Image.Resampling.NEAREST)
+      photo=ImageTk.PhotoImage(fitted,master=cv)
+     cv.create_image(0,0,image=photo,anchor='nw')
+     cv._ace_scene_image=photo
+     painted=True
+    except (ImportError,OSError,ValueError,tk.TclError):pass
+  if not painted:art.world(cv,place,battle,w,h)
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
-   art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
+   if not self._scene_actor(cv,hero,round(w*.2),round(h*.81)):
+    art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
    # Placeholder opponent remains visible until approved animation pack is installed.
-   art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
+   if not self._scene_actor(cv,hero,round(w*.73),round(h*.81),enemy=True):
+    art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
    cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    if self.last_visual_cue:
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
+ def _scene_actor(self,cv,hero,x,y,enemy=False):
+  """Draw a static approved/bundled sprite; never animate during idle scenes."""
+  keys=self.asset_pack.choose('body',enemy='hollow_guardian') if enemy else []
+  key=(keys[0] if keys else None) if enemy else asset_registry.select_character_sprite(self.asset_pack,hero,'body')
+  data=self.asset_pack.bytes(key) if key else None
+  if not data:return False
+  try:
+   from PIL import Image,ImageTk
+   with Image.open(BytesIO(data)) as im:
+    photo=ImageTk.PhotoImage(im.convert('RGBA').resize((118,118),Image.Resampling.NEAREST),master=cv)
+   refs=getattr(cv,'_ace_actor_refs',[])
+   refs.append(photo);cv._ace_actor_refs=refs
+   cv.create_image(x,y,image=photo,anchor='s')
+   return True
+  except (ImportError,OSError,ValueError,tk.TclError):return False
  def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page('The Hollow Bell')
