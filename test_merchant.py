@@ -30,7 +30,7 @@ class MerchantTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             merchant.buy(self.c, "Iron Sword")
         with self.assertRaises(ValueError):
-            merchant.sell(self.c, "Iron Sword")
+            merchant.sell(self.c, "Ashwood Staff")
         self.assertEqual(self.h["gold"], 0)
     def test_requires_market_and_no_enemy(self):
         with self.assertRaises(ValueError):
