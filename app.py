@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -191,7 +191,7 @@ class App(tk.Tk):
   self.button(f,'OPEN FULL CHARACTER SHEET',lambda:ui_character_sheet.open_sheet(self,h),True).pack(fill='x',padx=12,pady=4)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree']):
+  for i,name in enumerate(['Character Sheet','Inventory','Shop','Abilities','Journal','Story Tree']):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
    self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
@@ -207,6 +207,17 @@ class App(tk.Tk):
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
    self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
+  elif self.panel=='Shop':
+   if self.c['location']!='market':
+    self.label(txt,'Visit the market to browse and buy supplies.',12,wraplength=260).pack(anchor='w',pady=8)
+   else:
+    self.label(txt,'YOUR GOLD: '+str(h['gold']),14).pack(anchor='w',pady=8)
+    for name,item in shop.CATALOG.items():
+     line=tk.Frame(txt,bg=PARCH)
+     line.pack(fill='x',pady=3)
+     self.label(line,name+' · '+str(item['price'])+' gold',11,wraplength=170).pack(anchor='w')
+     self.label(line,item['description'],10,wraplength=170).pack(side='left')
+     self.button(line,'BUY',lambda x=name:self._buy(x),True).pack(side='right')
   elif self.panel=='Abilities':
    for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
    if h['class']=='Mage' and h.get('magic') in spell_catalog.MAGIC_TYPES:
@@ -222,6 +233,13 @@ class App(tk.Tk):
      self.label(txt,label,11).pack(anchor='w',pady=2)
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+ def _buy(self,item):
+  try:
+   shop.buy(self.c,item)
+   game.save(DATA,self.c)
+   self._adventure()
+  except ValueError as e:messagebox.showwarning('Shop',str(e))
+
  def _consume(self,item):
   try:
    game.use_item(self.c,item)
