@@ -1,5 +1,6 @@
 """Native canvas artwork; no external image models, fonts, or asset downloads."""
 import random
+from pathlib import Path
 INK='#39291f';GOLD='#b18a4d';PARCH='#e9d4a8';DARK='#292b29'
 def panel(cv,x,y,w,h,title='',fill=PARCH):
  cv.create_rectangle(x+5,y+6,x+w+5,y+h+6,fill='#151918',outline='')
@@ -18,7 +19,31 @@ def character(cv,x,y,cls='Fighter',seed=7,scale=3):
  if cls=='Mage':block(28,4,3,27,'#614a36');block(26,3,7,8,'#7ec0bd')
  if cls=='Rogue':block(27,20,2,12,'#d0c5a5')
  if cls=='Vessel':block(28,4,3,29,'#8b6d46');block(26,3,7,6,'#abc084')
+def _addon_background(cv,place,battle,width,height):
+ """Display an optional, verified PNG background; draw native art otherwise.
+
+ Generated imagery is treated as data, never executable code. It can be
+ replaced by an asset-only update without changing gameplay or save files.
+ """
+ try:
+  import tkinter as tk
+  from update_addons import active_asset
+  storage=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
+  slot='battle' if battle else place
+  path=active_asset(storage,'assets/locations/'+slot+'.png')
+  if path is None:return False
+  image=tk.PhotoImage(master=cv,file=str(path))
+  # Prefer a predictable native image size: assets are designed for 760x310.
+  # Preserve the Tk image reference until canvas redraw/destruction.
+  cv._ace_scene_image=image
+  cv.create_image(width//2,height//2,image=image,anchor='center')
+  cv.create_rectangle(5,5,width-5,height-5,outline='#c2a070',width=4)
+  return True
+ except (Exception):
+  return False
+
 def world(cv,place='square',battle=False,width=760,height=310):
+ if _addon_background(cv,place,battle,width,height):return
  r=random.Random(61 if place=='square' else {'tavern':11,'market':21,'well':27,'forest':42}.get(place,61));w=width;h=height
  cv.configure(bg='#253a35');cv.create_rectangle(0,0,w,h,fill='#779287' if place!='tavern' else '#5f4937',outline='')
  cv.create_oval(w-160,18,w-92,86,fill='#e9d5a1',outline='')
