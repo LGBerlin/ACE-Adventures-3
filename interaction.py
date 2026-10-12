@@ -54,11 +54,6 @@ def perform(c,text,rng=None):
         if not item:raise ValueError('That is not a usable consumable.')
         msg=game.use_item(c,item,rng=rng)
         return {'roll_required':False,'result':msg,'action':text,'choice':'use_item'}
-    npc=re.fullmatch(r'(?:i\s+)?(?:talk to|speak to|chat with)\s+(.+?)[.!]?',lower)
-    if npc:
-        name=next((name for name in town_services.PEOPLE if name.casefold()==npc.group(1).strip()),npc.group(1))
-        msg=town_services.talk(c,name)
-        return {'roll_required':False,'result':msg,'action':text,'choice':'townsfolk'}
     crafting=re.fullmatch(r'(?:i\s+)?enchant\s+(.+?)[.!]?',lower)
     if crafting:
         item=next((name for name in loot_system.ITEMS if name.casefold()==crafting.group(1).strip()),None)
@@ -91,6 +86,11 @@ def perform(c,text,rng=None):
     if choice is not None:
         outcome=story.select(c,choice)
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
+    npc=re.fullmatch(r'(?:i\s+)?(?:talk to|speak to|chat with)\s+(.+?)[.!]?',lower)
+    if npc:
+        name=next((name for name in town_services.PEOPLE if name.casefold()==npc.group(1).strip()),npc.group(1))
+        msg=town_services.talk(c,name)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'townsfolk'}
     gear=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(equip|wield|unequip|sheathe)\s*(?:my |the |a |an )?(.*?)[.!]?',lower)
     if gear:
         verb,name=gear.groups()
