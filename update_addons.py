@@ -51,8 +51,17 @@ def apply(root,manifest,fetch,origin):
     return version
 def rollback(root):
     marker=Path(root)/'addons'/'active.json';d=json.loads(marker.read_text());prev=d.get('previous')
-    if prev is None:marker.unlink()
-    else:marker.write_text(json.dumps({'version':prev,'previous':None}))
+    if prev is None:
+        marker.unlink()
+    else:
+        if not re.fullmatch(r'[0-9]+(?:\\.[0-9]+){1,3}(?:-[a-zA-Z0-9]+)?',prev):
+            raise ValueError('Invalid previous version')
+        previous_dir=marker.parent/'versions'/prev
+        if not previous_dir.is_dir() or previous_dir.is_symlink():
+            raise ValueError('Previous update missing; keeping current update')
+        with tempfile.NamedTemporaryFile('w',dir=marker.parent,delete=False) as tmp:
+            json.dump({'version':prev,'previous':None},tmp);temp_name=tmp.name
+        os.replace(temp_name,marker)
 
 def active_asset(root,relative_path):
     """Find a verified add-on asset without permitting path traversal or symlink escapes.
