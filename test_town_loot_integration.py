@@ -26,8 +26,9 @@ class TownLootIntegrationTests(unittest.TestCase):
  def test_townsfolk_and_guild(self):
   self.assertIn("Nella",interaction.perform(self.c,"talk to Nella")["result"])
   interaction.perform(self.c,"accept guild job Supply Run")
-  self.c["location"]="market"
-  interaction.perform(self.c,"look around")
+  interaction.perform(self.c,"go to market")
+  with self.assertRaises(ValueError):interaction.perform(self.c,"claim guild reward")
+  interaction.perform(self.c,"go to square")
   result=interaction.perform(self.c,"claim guild reward")
   self.assertIn("completed",result["result"])
   self.assertIsNone(self.c["guild_job"])
