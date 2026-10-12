@@ -1,3 +1,4 @@
+import loot_system
 """Authoritative tabletop merchant economy.
 
 Merchants change only deterministic campaign state; the Dungeon Master narrates
@@ -12,6 +13,7 @@ CATALOG = {
     "Ashwood Staff": {"price": 14, "description": "A mage's carved focus."},
     "Pilgrim Staff": {"price": 11, "description": "A traveller's dependable staff."},
 }
+CATALOG.update({name:{'price':spec['price'],'description':spec['kind'].title()} for name,spec in loot_system.ITEMS.items()})
 def available(campaign):
     return bool(campaign.get("started") and campaign.get("location") == "market"
                 and not campaign.get("enemy"))
