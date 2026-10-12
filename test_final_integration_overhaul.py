@@ -59,6 +59,25 @@ class IntegrationOverhaul(unittest.TestCase):
   reply=dungeon_master.narrate(c,{'result':'Failed'},request=lambda body:{'message':{'content':'The guardian remains standing.'}})
   self.assertIn('remains standing',reply)
   self.assertEqual(c,baseline)
+ def test_legacy_story_combat_cannot_complete_wrong_boss(self):
+  c=self.make()
+  c['quest']={'stage':3,'completed':False}
+  c['enemy']={'name':'Forest Wisp','hp':1,'max_hp':15,'ac':10}
+  with patch.object(random.Random,'randint',lambda self,a,b:b):
+   result=story.select(c,'attack')
+  self.assertIn('damage',result)
+  self.assertIsNone(c['enemy'])
+  self.assertEqual(c['quest']['stage'],3)
+  self.assertEqual(len(c['dice_history']),1)
+ def test_legacy_guard_stays_on_enemy_turn(self):
+  c=self.make()
+  c['quest']={'stage':3,'completed':False}
+  c['enemy']={'name':'Hollow Guardian','hp':20,'max_hp':30,'ac':14,'boss':True}
+  before=c['turn']
+  story.select(c,'guard')
+  self.assertEqual(c['turn'],before+1)
+  self.assertEqual(c['quest']['stage'],3)
+  self.assertEqual(len(c.get('dice_history',[])),1)
  def test_enchant_equipment_and_dice_are_saved_together(self):
   c=self.make()
   h=c['characters'][0];h['gold']=100;h['inventory'].append('Chainmail')
