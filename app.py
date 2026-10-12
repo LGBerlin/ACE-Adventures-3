@@ -113,7 +113,7 @@ class App(tk.Tk):
   self.button(top,'SAVE & EXIT',self._exit).pack(side='right',padx=4)
   if not self.c['started']:
    outer,inside=self.card(self,'The party has gathered');outer.pack(fill='both',expand=True,padx=80,pady=25)
-   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['race']+' '+hero['path'],16).pack(padx=18,pady=10)
+   for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['path'],16).pack(padx=18,pady=10)
    self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25);return
   body=tk.Frame(self,bg=DARK);body.pack(fill='both',expand=True,padx=14,pady=8)
   left=tk.Frame(body,bg=DARK);left.pack(side='left',fill='both',expand=True,padx=(0,10));right=tk.Frame(body,bg=DARK,width=340);right.pack(side='right',fill='y');right.pack_propagate(False)
@@ -134,7 +134,7 @@ class App(tk.Tk):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
   self.label(f,h['name'],20).pack(padx=14)
-  self.label(f,h['race']+' · '+h['path']+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+  self.label(f,h['path']+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for name in ['Record','Pack','Abilities','Journal']:
