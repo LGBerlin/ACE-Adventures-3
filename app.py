@@ -289,6 +289,7 @@ class App(tk.Tk):
     for name in town_services.JOBS:
      self.button(txt,name,lambda job=name:self._free('accept guild job '+job),True).pack(fill='x',pady=2)
    if self.c.get('guild_job'):
+    self.button(txt,'ABANDON GUILD JOB',lambda:self._free('abandon guild job'),True).pack(fill='x',pady=3)
     self.button(txt,'CLAIM GUILD REWARD',lambda:self._free('claim guild reward'),True).pack(fill='x',pady=5)
    if self.c['location']=='market':
     self.label(txt,'ENCHANT EQUIPMENT',12).pack(anchor='w',pady=5)
