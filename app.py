@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk,sys
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop,dungeon_master
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop,dungeon_master,ui_inventory
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -243,6 +243,7 @@ class App(tk.Tk):
   self.label(f,h['name'],20).pack(padx=14)
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.button(f,'OPEN FULL CHARACTER SHEET',lambda:ui_character_sheet.open_sheet(self,h),True).pack(fill='x',padx=12,pady=4)
+  self.button(f,'OPEN INVENTORY & EQUIPMENT',self._open_inventory,True).pack(fill='x',padx=12,pady=4)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for i,name in enumerate(['Character Sheet','Inventory','Shop','Abilities','Journal','Story Tree']):
@@ -287,6 +288,11 @@ class App(tk.Tk):
      self.label(txt,label,11).pack(anchor='w',pady=2)
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+ def _open_inventory(self):
+  def persist():
+   game.save(DATA,self.c)
+   self._adventure()
+  ui_inventory.open_inventory(self,self.c,persist)
  def _buy(self,item):
   try:
    shop.buy(self.c,item)
