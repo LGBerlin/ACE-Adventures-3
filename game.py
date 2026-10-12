@@ -50,6 +50,12 @@ def award_experience(hero,amount):
                 if name not in hero['moves']:
                     hero['moves'].append(name)
                     changes.append(name)
+        elif hero['class'] in ('Fighter','Rogue','Vessel'):
+            import technique_catalog
+            for name in technique_catalog.unlocked(hero['path'],hero['level']):
+                if name not in hero['moves']:
+                    hero['moves'].append(name)
+                    changes.append(name)
     return changes
 
 def new_campaign(title,players):
