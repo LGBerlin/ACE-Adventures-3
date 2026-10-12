@@ -91,6 +91,12 @@ def perform(c,text,rng=None):
         name=next((name for name in town_services.PEOPLE if name.casefold()==npc.group(1).strip()),npc.group(1))
         msg=town_services.talk(c,name)
         return {'roll_required':False,'result':msg,'action':text,'choice':'townsfolk'}
+    loot_equip=re.fullmatch(r'(?:i\s+)?(?:equip|wear)\s+(.+?)[.!]?',lower)
+    if loot_equip:
+        item=next((name for name in loot_system.ITEMS if name.casefold()==loot_equip.group(1).strip()),None)
+        if item:
+            msg=loot_system.equip(c,item)
+            return {'roll_required':False,'result':msg,'action':text,'choice':'equipment'}
     gear=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(equip|wield|unequip|sheathe)\s*(?:my |the |a |an )?(.*?)[.!]?',lower)
     if gear:
         verb,name=gear.groups()
