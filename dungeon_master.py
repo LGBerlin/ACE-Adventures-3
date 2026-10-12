@@ -117,6 +117,20 @@ def prompt_context(c,result):
             'known_clues':w['clues'][-15:], 'history':c.get('history',[])[-8:],
             'authoritative_outcome':result}
 
+def _narration_conflicts(c,result,prose):
+    """Conservatively reject explicit fictional state changes."""
+    lower=prose.casefold()
+    actual=json.dumps(result,ensure_ascii=False).casefold()
+    quest=c.get('quest') or {}
+    if not quest.get('completed') and re.search(r'\b(?:the |your )?quest (?:is |has been )?complet(?:e|ed)\b',lower):
+        return True
+    if c.get('enemy') and re.search(r'\b(?:enemy|guardian|monster|boss) (?:is |has been )?(?:defeated|slain|killed)\b',lower):
+        return True
+    for match in re.finditer(r'\b(?:gain|gains|earn|earns|receive|receives|obtain|obtains|awarded)\s+(\d{1,9})\s+gold\b',lower):
+        if match.group(1)+' gold' not in actual:
+            return True
+    return False
+
 def narrate(c,result,model=MODEL,timeout=45,request=None):
     """Narrate only. Callers must never apply LLM prose as authoritative state."""
     sys=('You are a skilled, grounded D&D-style narrator in a coherent fantasy world. '
@@ -133,4 +147,6 @@ def narrate(c,result,model=MODEL,timeout=45,request=None):
         with urllib.request.urlopen(req,timeout=timeout) as resp:reply=json.load(resp)
     prose=str(reply.get('message',{}).get('content','')).strip()
     if not prose:raise ValueError('Model returned no narration.')
+    if _narration_conflicts(c,result,prose):
+        return str(result.get('result',result) if isinstance(result,dict) else result)[:1100]
     return prose[:2200]
