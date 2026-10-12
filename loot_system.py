@@ -31,7 +31,11 @@ def bonuses(h):
   if spec and spec["kind"]==kind and item in h.get("inventory",[]) and h["class"] in spec["classes"]:
    for field in result:
     relevant=(field=="attack" and kind=="weapon") or (field=="defense" and kind=="armor") or (field=="mana" and kind=="trinket")
-    result[field]+=spec.get(field,0)+(h.get("enchantments",{}).get(item,0) if relevant else 0)
+    result[field]+=spec.get(field,0)
+    level=h.get("enchantments",{}).get(item,0)
+    affinity=h.get("enchant_types",{}).get(item)
+    affinity_stat={"Ember":"attack","Frost":"defense","Storm":"mana","Fortitude":"defense","Arcane":"mana","Fortune":"attack"}.get(affinity)
+    if level and field==affinity_stat:result[field]+=level
  return result
 ENCHANT_TYPES=('Ember','Frost','Storm','Fortitude','Arcane','Fortune')
 def enchant(c,item,rng=None):
