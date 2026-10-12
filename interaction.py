@@ -87,10 +87,11 @@ def perform(c,text,rng=None):
     if c.get('enemy'):
         if re.match(r'^(?:i\s+)?(?:buy|purchase|sell|go|travel|walk|head|visit|return)\b',lower):
             raise ValueError('You must resolve the encounter before trading or travelling.')
+        was_guardian=bool(c["enemy"].get("boss") and c["enemy"].get("name")=="Hollow Guardian")
         result=game.action(c,text,rng)
         result['roll_required']=True
         dice_ledger.record(c,result,text)
-        if c.get("enemy") is None and story.ensure(c)["stage"]==3:
+        if was_guardian and c.get("enemy") is None and story.ensure(c)["stage"]==3:
             story.ensure(c)["stage"]=4
             c["location"]="square"
             c["history"].append("The guardian falls. Return to Elder Sera.")
