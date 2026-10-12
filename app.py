@@ -64,7 +64,7 @@ class App(tk.Tk):
    self.q.put(('services',(popup,status,result)))
   threading.Thread(target=worker,daemon=True).start()
  def _home(self):
-  self.c=None;self.page('The Book of Unwritten Roads')
+  self.last_visual_cue=None;self.animation_director.clear();self.c=None;self.page('The Book of Unwritten Roads')
   body=tk.Frame(self,bg=DARK);body.pack(expand=True,fill='both',padx=18,pady=15)
   left,inside=self.card(body,'Campaign Library');left.pack(side='left',fill='y',padx=(0,12))
   self.button(inside,'✦  NEW CHRONICLE',self._new,True).pack(fill='x',padx=14,pady=9)
@@ -81,7 +81,7 @@ class App(tk.Tk):
    try:self.c=game.new_campaign(name.get(),int(count.get()));game.save(DATA,self.c);self._show()
    except ValueError as e:messagebox.showerror('Campaign',str(e))
   self.button(f,'OPEN THE CHRONICLE',create).pack(pady=22)
- def _open(self,c):self.c=c;story.ensure(self.c);self._show()
+ def _open(self,c):self.last_visual_cue=None;self.animation_director.clear();self.c=c;story.ensure(self.c);self._show()
  def _show(self):
   if len(self.c['characters'])<self.c['players']:self._create_character()
   else:self._adventure()
@@ -119,7 +119,7 @@ class App(tk.Tk):
    cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    if self.last_visual_cue:
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
- def _switch(self,i):self.c['active']=i;game.save(DATA,self.c);self._adventure()
+ def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page(story.journal(self.c));top=tk.Frame(self,bg=DARK);top.pack(fill='x',padx=13,pady=5)
   for i,h in enumerate(self.c['characters']):self.button(top,('◆ ' if i==self.c['active'] else '')+h['name'],lambda i=i:self._switch(i)).pack(side='left',padx=4)
@@ -187,7 +187,7 @@ class App(tk.Tk):
  def _panel(self,name):self.panel=name;self._adventure()
  def _choose(self,key):
   try:
-   result=story.select(self.c,key);game.save(DATA,self.c)
+   result=story.select(self.c,key);self.last_visual_cue=None;self.animation_director.clear();game.save(DATA,self.c)
    if key in ('attack','guard','negotiate'):self._narrate(result)
    self._adventure()
   except ValueError as e:messagebox.showwarning('Adventure',str(e))
@@ -203,6 +203,7 @@ class App(tk.Tk):
    game.save(DATA,self.c)
    if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
     story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
+   if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
    self._adventure();self._roll_display(result);self._narrate(result['result'])
   except ValueError as e:messagebox.showwarning('Action',str(e))
  def _roll_display(self,result):
