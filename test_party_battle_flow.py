@@ -26,6 +26,27 @@ class PartyBattleFlowTests(unittest.TestCase):
         self.assertEqual(self.c["turn"],2)
         actions=[r["actor"] for r in combat_log.recent(self.c) if r["kind"]=="action"]
         self.assertEqual(actions,["Aster","Bryn"])
+    def test_victory_shares_xp_without_duplicate_gold(self):
+        a,b=self.c["characters"]
+        self.c["enemy"]["hp"]=1
+        before_gold=a["gold"]
+        class HighRoll:
+            def randint(self,low,high):return high
+        result=game.action(self.c,"I attack the enemy",HighRoll())
+        self.assertIsNone(self.c["enemy"])
+        self.assertEqual(a["xp"],10)
+        self.assertEqual(b["xp"],5)
+        self.assertEqual(a["gold"],before_gold+8)
+        self.assertIn("Enemy defeated",result["result"])
+    def test_incapacitated_ally_gains_no_xp(self):
+        a,b=self.c["characters"]
+        b["hp"]=0
+        self.c["enemy"]["hp"]=1
+        class HighRoll:
+            def randint(self,low,high):return high
+        game.action(self.c,"I attack the enemy",HighRoll())
+        self.assertEqual(a["xp"],10)
+        self.assertEqual(b["xp"],0)
     def test_resume_battle_preserves_active_character_and_log(self):
         self.c["active"]=1
         game.action(self.c,"I guard",random.Random(1))
