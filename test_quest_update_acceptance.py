@@ -58,6 +58,36 @@ class JourneyAndUpdaterIntegration(unittest.TestCase):
   game.encounter(c)
   with self.assertRaises(ValueError):town_services.abandon(c)
   self.assertIsNotNone(c['guild_job'])
+ def test_npc_objective_persists_and_cannot_be_skipped(self):
+  import interaction
+  with tempfile.TemporaryDirectory() as folder:
+   c=self.make()
+   town_services.accept(c,'Herbalist Consultation')
+   self.assertEqual(len(town_services.quest_status(c)),2)
+   self.assertIn('Travel to the market',interaction.perform(c,'quest status')['result'])
+   self.assertFalse(interaction.perform(c,'quest status')['roll_required'])
+   story.select(c,'market')
+   self.assertIn('Speak with Yarrow',town_services.quest_status(c)[1]['objective'])
+   story.select(c,'square')
+   with self.assertRaises(ValueError):town_services.complete(c)
+   story.select(c,'market')
+   interaction.perform(c,'talk to Yarrow')
+   self.assertTrue(c['guild_job']['spoke_to_target'])
+   game.save(folder,c)
+   c=game.load_all(folder)[0]
+   story.select(c,'square')
+   old=c['characters'][0]['gold']
+   town_services.complete(c)
+   self.assertGreater(c['characters'][0]['gold'],old)
+   self.assertEqual(len(town_services.quest_status(c)),1)
+ def test_different_npc_does_not_satisfy_assignment(self):
+  c=self.make()
+  town_services.accept(c,'Inn Rumors')
+  story.select(c,'tavern')
+  town_services.talk(c,'Mira')
+  self.assertFalse(c['guild_job']['spoke_to_target'])
+  town_services.talk(c,'Tomas')
+  self.assertTrue(c['guild_job']['spoke_to_target'])
  def test_content_update_rollback_preserves_campaign_bytes(self):
   with tempfile.TemporaryDirectory() as directory:
    root=Path(directory)
