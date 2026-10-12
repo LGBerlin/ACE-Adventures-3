@@ -44,6 +44,15 @@ def award_experience(hero,amount):
         hero['hp']=min(hero['max_hp'],hero['hp']+3)
         hero['max_mana']+=3
         hero['mana']=min(hero['max_mana'],hero['mana']+3)
+        if hero['level']%10==0:
+            stat={'Fighter':'STR','Rogue':'DEX','Mage':'INT','Vessel':'WIS'}[hero['class']]
+            hero['stats'][stat]=min(30,hero['stats'][stat]+1)
+            changes.append(stat+' increased')
+        if hero['level'] in (8,16,28,40,55,70,85,100):
+            passive=hero['path']+' Mastery '+str(hero['level'])
+            if passive not in hero['passives']:
+                hero['passives'].append(passive)
+                changes.append(passive)
         if hero['class']=='Mage' and hero.get('magic') in SPELLS:
             import spell_catalog
             for name in spell_catalog.unlocked(hero['magic'],hero['level']):
