@@ -93,12 +93,24 @@ def prompt_context(c,result):
     import copy
     w=ensure_world(copy.deepcopy(c))
     import town_services
+    local_people={name:{'role':data['role'],'familiarity':c.get('town_memory',{}).get(name,0)}
+                  for name,data in town_services.PEOPLE.items() if data['place']==c.get('location')}
+    import loot_system
     return {'campaign':c.get('title'), 'chapter':w['chapter'], 'location':c.get('location'),
+            'enemy':{key:value for key,value in (c.get('enemy') or {}).items() if key in ('name','hp','max_hp','ac','boss','phase','staggered','weakened')},
+            'guild_rank':town_services.guild_rank(c),
+            'guild_jobs_completed':c.get('guild_jobs_completed',0),
+            'townsfolk':local_people,
+            'last_dice':c.get('dice_history',[])[-3:],
             'active_quests':town_services.quest_status(c),
             'last_enchantment':c.get('last_enchant_spin'),
             'last_loot':c.get('loot_history',[])[-3:],
             'quest':c.get('quest',{}), 'party':[
-              {'name':h['name'],'class':h['class'],'path':h['path'],'hp':h['hp'],'mana':h['mana']}
+              {'name':h['name'],'class':h['class'],'path':h['path'],'level':h.get('level',1),
+               'hp':h['hp'],'max_hp':h['max_hp'],'mana':h['mana'],'max_mana':h['max_mana'],
+               'known_abilities':h.get('moves',[])[-15:], 'passives':h.get('passives',[])[-10:],
+               'equipment':h.get('gear_slots',{}), 'equipment_effects':loot_system.bonuses(h),
+               'enchants':h.get('enchant_types',{})}
               for h in c.get('characters',[])],
             'present_npcs':{k:{**v,'memories':w['npc_memory'].get(k,[])[-4:],'relationship':w['relationships'].get(k,0)}
                             for k,v in available_npcs(c).items()},
