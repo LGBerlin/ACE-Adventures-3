@@ -6,22 +6,40 @@ a production asset manifest may be published.
 import csv,hashlib,io,json,re,sys,zipfile
 from pathlib import Path,PurePosixPath
 from PIL import Image
-KEYWORDS={
- 'fighter':('fighter','knight','warrior','sword','plate'),
- 'rogue':('rogue','thief','assassin','ranger'),
- 'mage':('mage','wizard','spellcaster','robe'),
- 'vessel':('monk','druid','priest','healer'),
- 'enemy':('goblin','skeleton','wolf','slime','monster','orc','spider'),
- 'magic':('fire','water','earth','wind','lightning','gravity','blood','illusion','shadow','heal','spell','magic','effect'),
- 'environment':('town','house','forest','tavern','cave','castle','tileset'),
- 'ui':('interface','button','panel','frame','parchment','inventory','health','mana')
-}
-def classify(path):
- s=path.lower()
- return [k for k,words in KEYWORDS.items() if any(w in s for w in words)]
+CATEGORIES=('body','armor','weapons','enemies','effects','environments','ui','items')
+def classify(path,pack=''):
+ """Prioritize known LPC folder semantics; never treat action names as effects."""
+ p=path.lower().replace('\\\\','/')
+ name=PurePosixPath(p).name
+ segments=p.split('/')
+ if any(q in p for q in ('readme-images/','/preview','/screenshots','/examples/')):
+  return []
+ if any(q in p for q in ('/spritesheets/body/','/body/bodies/','/characters/body/')):
+  return ['body']
+ if any(q in p for q in ('/spritesheets/','/equipment/','/armour/','/clothing/')):
+  if any(q in p for q in ('/weapon/','/weapons/','/sword/','/dagger/','/bow/','/staff/','/shield/')):
+   return ['weapons']
+  return ['armor']
+ if any(q in p for q in ('/enemies/','/monsters/','/mobs/','/creatures/')):
+  return ['enemies']
+ if any(q in p for q in ('/fx/','/effects/','/spells/','/vfx/')) or 'magic_pack' in pack.lower():
+  return ['effects']
+ if any(q in p for q in ('/tiles/','/terrain/','/backgrounds/','/buildings/','/landscapes/')):
+  return ['environments']
+ if any(q in p for q in ('/ui/','/gui/','/interface/','/hud/')):
+  return ['ui']
+ if any(q in p for q in ('/items/','/icons/','/pickups/','/potions/')):
+  return ['items']
+ if 'weapon' in pack.lower() or any(w in name for w in ('longsword','glowsword','spear','dagger','scimitar')):
+  return ['weapons']
+ if 'ui-' in pack.lower() or 'ui_' in pack.lower():
+  return ['ui']
+ if any(w in p for w in ('goblin','skeleton','wolf','slime')) and '/spritesheets/' not in p:
+  return ['enemies']
+ return []
 def stage(source,dest,max_images=180):
  dest=Path(dest);dest.mkdir(parents=True,exist_ok=True)
- entries=[];counts={k:0 for k in KEYWORDS};licenses=[]
+ entries=[];counts={k:0 for k in CATEGORIES};licenses=[]
  with zipfile.ZipFile(source) as outer:
   for outer_entry in outer.infolist():
    if not outer_entry.filename.lower().endswith('.zip') or outer_entry.file_size>450_000_000:continue
@@ -34,7 +52,7 @@ def stage(source,dest,max_images=180):
       if any(x in name.lower() for x in ('license','licence','credits','attribution','readme')) and extension in ('.txt','.md','.license'):
        licenses.append({'pack':pack,'name':name})
       if extension!='.png' or not 0<member.file_size<=2_000_000 or len(entries)>=max_images:continue
-      categories=classify(name)
+      categories=classify(name,pack)
       if not categories:continue
       category=min(categories,key=lambda x:counts[x])
       if counts[category]>=30:continue
