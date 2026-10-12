@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import merchant,equipment,atlas,dice_ledger
+import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
@@ -210,7 +210,7 @@ class App(tk.Tk):
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree','Shop','Map','Dice Board']):
+  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree','Shop','Map','Dice Board','Town']):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
    self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
@@ -225,6 +225,8 @@ class App(tk.Tk):
     self.label(line,'◇  '+thing,12).pack(side='left')
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
+    elif thing in loot_system.ITEMS:
+     self.button(line,'EQUIP',lambda item=thing:self._free('equip '+item),True).pack(side='right')
     elif thing in equipment.WEAPONS:
      suffix=' (equipped)' if equipment.equipped(h)==thing else ''
      if suffix:self.label(line,suffix,10).pack(side='left')
@@ -264,6 +266,24 @@ class App(tk.Tk):
      line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
      self.label(line,item,10).pack(side='left')
      self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
+  elif self.panel=='Town':
+   self.label(txt,'LOCAL PEOPLE',13).pack(anchor='w',pady=4)
+   present=[name for name,info in town_services.PEOPLE.items() if info['place']==self.c['location']]
+   for name in present:
+    line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+    self.label(line,name,10).pack(side='left')
+    self.button(line,'TALK',lambda who=name:self._free('talk to '+who),True).pack(side='right')
+   if self.c['location']=='square':
+    self.label(txt,'ADVENTURERS GUILD',12).pack(anchor='w',pady=7)
+    for name in town_services.JOBS:
+     self.button(txt,name,lambda job=name:self._free('accept guild job '+job),True).pack(fill='x',pady=2)
+   if self.c.get('guild_job'):
+    self.button(txt,'CLAIM GUILD REWARD',lambda:self._free('claim guild reward'),True).pack(fill='x',pady=5)
+   if self.c['location']=='market':
+    self.label(txt,'ENCHANT EQUIPMENT',12).pack(anchor='w',pady=5)
+    for thing in sorted(set(h['inventory'])):
+     if thing in loot_system.ITEMS:
+      self.button(txt,'ENCHANT '+thing,lambda item=thing:self._free('enchant '+item),True).pack(fill='x',pady=2)
   elif self.panel=='Map':
    self._minimap(txt)
   elif self.panel=='Dice Board':
