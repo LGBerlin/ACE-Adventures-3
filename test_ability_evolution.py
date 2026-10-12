@@ -5,6 +5,7 @@ import game
 import visual_mapping
 import spell_catalog
 import technique_catalog
+import ability_progression
 
 class AbilityEvolutionTests(unittest.TestCase):
     def test_every_magic_school_evolves_name_and_appearance(self):
@@ -21,7 +22,7 @@ class AbilityEvolutionTests(unittest.TestCase):
                 with self.subTest(school=school,level=level):
                     self.assertIn(entry['name'],hero['moves'])
                     self.assertEqual(cue['name'],entry['name'])
-                    self.assertEqual(cue['tier'],tier)
+                    self.assertEqual(cue['tier'],max(tier,ability_progression.tier(hero,entry['name'])))
     def test_every_nonmage_path_evolves_name_and_appearance(self):
         for cls in ('Rogue','Fighter','Vessel'):
             for path in game.PATHS[cls]:
