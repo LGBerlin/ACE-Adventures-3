@@ -57,7 +57,7 @@ def perform(c,text,rng=None):
         return {'roll_required':False,'result':outcome,'choice':choice,'action':text}
     # Buy/sell are deterministic, and both the merchant and available funds
     # are checked by the shop engine, not the text interpreter or the AI.
-    trade=re.fullmatch(r'(?:i\\s+)?(?:want to |would like to |please )?(buy|purchase|sell)\\s+(?:a |an |the |some )?(.+?)[.!]?',lower)
+    trade=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(buy|purchase|sell)\s+(?:a |an |the |some )?(.+?)[.!]?',lower)
     if trade:
         verb,name=trade.groups()
         item=next((item for item in merchant.CATALOG if item.casefold()==name.strip()),None)
@@ -66,15 +66,15 @@ def perform(c,text,rng=None):
         return {'roll_required':False,'result':msg,'action':text,'choice':'trade'}
     # Mundane observations, listening, and rest are not skill checks and
     # never provide free HP, mana, XP or equipment.
-    mundane=re.fullmatch(r'(?:i\\s+)?(?:look around|look at the scenery|wait|rest|sit down|listen|hello|hi|hey|thank you|thanks|examine my equipment|check my inventory|open my journal|view the map|study the map)[.!]?',lower)
+    mundane=re.fullmatch(r'(?:i\s+)?(?:look around|look at the scenery|wait|rest|sit down|listen|hello|hi|hey|thank you|thanks|examine my equipment|check my inventory|open my journal|view the map|study the map)[.!]?',lower)
     if mundane:
         msg='You '+lower.removeprefix('i ').rstrip('.!')+'.'
         c['history'].append(msg);c['turn']+=1
         return {'roll_required':False,'result':msg,'action':text}
     # Explicit dialogue with a non-present character is not a remote
     # charisma roll; ask the player to travel to them instead.
-    if re.search(r'\\b(?:talk|speak|ask|question|converse|chat)\\b',lower):
-        if re.search(r'\\b(?:sera|elder|mira|innkeeper|yarrow|herbalist)\\b',lower):
+    if re.search(r'\b(?:talk|speak|ask|question|converse|chat)\b',lower):
+        if re.search(r'\b(?:sera|elder|mira|innkeeper|yarrow|herbalist)\b',lower):
             raise ValueError('You must be with that person to speak to them.')
     result=game.action(c,text,rng)
     result['roll_required']=True
