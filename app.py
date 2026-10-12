@@ -42,7 +42,7 @@ class App(tk.Tk):
     with Image.open(BytesIO(source)) as img:
      img.thumbnail((168,168))
      photo=ImageTk.PhotoImage(img.copy(),master=canvas)
-    canvas.create_image(122,90,image=photo)
+    canvas.create_image(int(canvas.cget('width'))//2,int(canvas.cget('height'))//2,image=photo)
     canvas.image=photo
     return
    except (ImportError,OSError,ValueError,tk.TclError):pass
@@ -124,7 +124,7 @@ class App(tk.Tk):
   cls=tk.StringVar();grid=tk.Frame(f,bg=PARCH);grid.pack(pady=10)
   for j,(kind,desc) in enumerate([('Fighter','Steel & Resolve'),('Rogue','Shadow & Precision'),('Mage','Arcane Knowledge'),('Vessel','Spirit & Balance')]):
    area=tk.Frame(grid,bg='#bba278',highlightbackground=WOOD,highlightthickness=3);area.grid(row=0,column=j,padx=6)
-   cv=tk.Canvas(area,width=132,height=155,bg='#686456',highlightthickness=0);cv.pack(padx=5,pady=6);art.character(cv,18,20,kind,j+15,4)
+   cv=tk.Canvas(area,width=132,height=155,bg='#514838',highlightthickness=0);cv.pack(padx=5,pady=6);self._portrait(cv,{'class':kind,'path':game.PATHS[kind][0],'sprite_seed':j+15})
    self.button(area,kind,lambda kind=kind:cls.set(kind),True).pack(fill='x',padx=5)
    self.label(area,desc,10,bg='#bba278').pack(pady=8)
   chosen=self.label(f,'Select a class before binding your fate.',12);chosen.pack(pady=6);cls.trace_add('write',lambda *_:chosen.config(text='Selected: '+cls.get()))
@@ -138,7 +138,7 @@ class App(tk.Tk):
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height())
+  cv.delete('all');cv._ace_actor_refs=[];w=max(650,cv.winfo_width());h=max(270,cv.winfo_height())
   battle=bool(self.c and self.c.get('enemy'))
   key=next(iter(self.asset_pack.choose('background',location='battle' if battle else place)),None)
   painted=False
