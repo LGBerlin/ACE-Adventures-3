@@ -181,8 +181,11 @@ class App(tk.Tk):
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for name in ['Record','Pack','Abilities','Journal','Story Tree']:
-   self.button(row,name,lambda x=name:self._panel(x),True).pack(side='left',expand=True,fill='x',padx=2)
+  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree']):
+   panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
+   self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
+  row.grid_columnconfigure(0,weight=1)
+  row.grid_columnconfigure(1,weight=1)
   txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
   if self.panel=='Record':
    for k,v in h['stats'].items():self.label(txt,f'{k}      {v:>2}     ({(v-10)//2:+d})',13).pack(anchor='w',pady=2)
