@@ -206,7 +206,7 @@ def action(c,text,rng=None):
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
     import ability_effects
     ability_role=ability_effects.role(hero,known)
-    defensive=bool(c.get('enemy')) and (ability_role=='ward' or (not known and any(re.search(r'(?<!\\w)'+w+r'(?!\\w)',t) for w in ('guard','defend','block','take cover'))))
+    defensive=bool(c.get('enemy')) and (ability_role=='ward' or (not known and any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover'))))
     cost=3 if known and not defensive else 0
     # Learned techniques use the same resource and attack rules as spells.
     # An ability with a defensive name remains a guard, not a free attack.
