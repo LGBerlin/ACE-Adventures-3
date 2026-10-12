@@ -26,11 +26,23 @@ jobs:
               raise SystemExit('Source not yet migrated: ' + ', '.join(missing))
           PY
       - name: Install packager
-        run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0
+        run: python -m pip install --disable-pip-version-check pyinstaller==6.16.0 certifi
       - name: Test and compile
         run: |
           python -m compileall -q .
           python -m unittest discover -v
+      - name: Verify public content update channel
+        run: |
+          python - <<'PY'
+          import tempfile,addon_updates,update_addons
+          with tempfile.TemporaryDirectory() as temp:
+              result=addon_updates.check_and_install(temp)
+              assert result==('updated','1.0.0'),result
+              content=update_addons.active_asset(temp,'stories/hollow-bell.json')
+              assert content is not None and content.is_file()
+              assert addon_updates.check_and_install(temp)==('current','1.0.0')
+              print('Verified HTTPS, SHA-256, install, activation and idempotent update.')
+          PY
       - name: Build native Mac app
         run: |
           python -m PyInstaller --noconfirm --clean --windowed --onedir \
