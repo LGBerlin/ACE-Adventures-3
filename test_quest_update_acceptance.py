@@ -40,6 +40,24 @@ class JourneyAndUpdaterIntegration(unittest.TestCase):
    self.assertIsNone(c['guild_job'])
    self.assertGreater(c['characters'][0]['gold'],before[0])
    with self.assertRaises(ValueError):town_services.complete(c)
+ def test_abandon_only_optional_quest_and_reaccept(self):
+  import interaction
+  c=self.make()
+  town_services.accept(c,'Supply Run')
+  self.assertEqual(len(town_services.active_quests(c)),2)
+  outcome=interaction.perform(c,'abandon guild job')
+  self.assertFalse(outcome['roll_required'])
+  self.assertIsNone(c['guild_job'])
+  self.assertEqual(len(town_services.active_quests(c)),1)
+  town_services.accept(c,'Tavern Errand')
+  self.assertEqual(len(town_services.active_quests(c)),2)
+  with self.assertRaises(ValueError):town_services.accept(c,'Supply Run')
+ def test_cannot_abandon_during_encounter(self):
+  c=self.make()
+  town_services.accept(c,'Supply Run')
+  game.encounter(c)
+  with self.assertRaises(ValueError):town_services.abandon(c)
+  self.assertIsNotNone(c['guild_job'])
  def test_content_update_rollback_preserves_campaign_bytes(self):
   with tempfile.TemporaryDirectory() as directory:
    root=Path(directory)
