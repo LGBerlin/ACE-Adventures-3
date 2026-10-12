@@ -20,7 +20,7 @@ class AccessibleTabletop(unittest.TestCase):
     game.start(c);ui.c=c
     ui._panel('Abilities');ui.update_idletasks()
     widgets=list(self.walk(ui))
-    buttons=[w for w in widgets if isinstance(w,tk.Label) and w.cget('takefocus')=='1']
+    buttons=[w for w in widgets if isinstance(w,tk.Label) and str(w.cget('takefocus'))=='1']
     self.assertTrue(buttons)
     bindings=buttons[0].bind()
     self.assertIn('<FocusIn>',bindings)
