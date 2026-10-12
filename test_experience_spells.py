@@ -26,4 +26,5 @@ class ExperienceSpellTests(unittest.TestCase):
   with self.assertRaises(ValueError):game.award_experience(hero,-1)
   with self.assertRaises(ValueError):game.award_experience(hero,True)
   game.award_experience(hero,500)
-  self.assertEqual(hero['moves'],game.MOVES[hero['path']])
+  import technique_catalog
+  self.assertEqual(hero['moves'],game.MOVES[hero['path']]+technique_catalog.unlocked(hero['path'],hero['level']))
