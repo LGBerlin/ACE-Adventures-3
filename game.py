@@ -143,9 +143,11 @@ def action(c,text,rng=None):
         all_named.update(entry['name'] for entry in spell_catalog.catalog(school))
     for path in technique_catalog.TECHNIQUES:
         all_named.update(entry['name'] for entry in technique_catalog.catalog(path))
-    for ability in all_named:
-        if ability not in hero['moves'] and re.search(r'(?<!\w)'+re.escape(ability.lower())+r'(?!\w)',t):
-            raise ValueError('That spell or technique is not available to this character.')
+    explicitly_named=bool(re.match(r'^(?:i\s+)?(?:use|cast|invoke|perform)\b',t))
+    if explicitly_named:
+        for ability in all_named:
+            if ability not in hero['moves'] and re.search(r'(?<!\w)'+re.escape(ability.lower())+r'(?!\w)',t):
+                raise ValueError('That spell or technique is not available to this character.')
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
     defensive=bool(c.get('enemy')) and (bool(known and any(w in known.lower() for w in ('guard','ward','dodge','escape','stance','parry','counter'))) or any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover')))
