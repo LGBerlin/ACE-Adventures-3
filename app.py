@@ -2,14 +2,14 @@
 import json,queue,threading,tkinter as tk,sys
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet,shop,dungeon_master
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._closing=False;self._poll_job=None;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._closing=False;self._poll_job=None;self._intent_generation=0;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
  def destroy(self):
   """Cancel recurring Tk work before tearing down the native interpreter."""
   self._closing=True
@@ -94,6 +94,7 @@ class App(tk.Tk):
    outbox.put(('services',result))
   threading.Thread(target=worker,daemon=True).start()
  def _home(self):
+  self._intent_generation+=1;self.busy=False
   self.last_visual_cue=None;self.animation_director.clear();self.c=None;self.page('The Book of Unwritten Roads')
   body=tk.Frame(self,bg=DARK);body.pack(expand=True,fill='both',padx=18,pady=15)
   left,inside=self.card(body,'Campaign Library');left.pack(side='left',fill='y',padx=(0,12))
@@ -111,7 +112,7 @@ class App(tk.Tk):
    try:self.c=game.new_campaign(name.get(),int(count.get()));game.save(DATA,self.c);self._show()
    except ValueError as e:messagebox.showerror('Campaign',str(e))
   self.button(f,'OPEN THE CHRONICLE',create).pack(pady=22)
- def _open(self,c):self.last_visual_cue=None;self.animation_director.clear();self.c=c;story.ensure(self.c);self._show()
+ def _open(self,c):self._intent_generation+=1;self.busy=False;self.last_visual_cue=None;self.animation_director.clear();self.c=c;story.ensure(self.c);self._show()
  def _show(self):
   if len(self.c['characters'])<self.c['players']:self._create_character()
   else:self._adventure()
@@ -182,7 +183,7 @@ class App(tk.Tk):
    cv.create_image(x,y,image=photo,anchor='s')
    return True
   except (ImportError,OSError,ValueError,tk.TclError):return False
- def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
+ def _switch(self,i):self._intent_generation+=1;self.busy=False;self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page('The Hollow Bell')
   if not self.c['started']:
@@ -307,11 +308,31 @@ class App(tk.Tk):
    self._adventure()
   except ValueError as e:messagebox.showwarning('Adventure',str(e))
  def _free(self,text):
+  """Interpret ambiguous commands off-thread; simple actions remain instant."""
   text=text.strip()
-  if not text:return
+  if not text or self.busy or not self.c:return
+  known=interaction.interpret_simple(self.c,text)
+  literal=dungeon_master.fallback_interpret(text)['kind']
+  if known is not None or literal in ('travel','fight','cast','use_item'):
+   self._resolve_action(text)
+   return
+  self.busy=True
+  self._intent_generation+=1
+  token=self._intent_generation
+  campaign_id=self.c['id']
+  snapshot=json.loads(json.dumps(self.c))
+  outbox=self.q
+  if hasattr(self,'dm_status') and self.dm_status.winfo_exists():
+   self.dm_status.config(text='Dungeon Master is interpreting your action...')
+  def worker():
+   intent=dungeon_master.interpret(text,timeout=8,context=snapshot)
+   outbox.put(('intent',(campaign_id,token,text,intent)))
+  threading.Thread(target=worker,daemon=True).start()
+ def _resolve_action(self,text,intent=None):
+  if not self.c:return
   try:
    had_enemy=bool(self.c.get('enemy'))
-   result=interaction.perform(self.c,text)
+   result=interaction.perform(self.c,text,intent=intent)
    hero=self.c['characters'][self.c['active']]
    if result['roll_required']:
     visual=visual_mapping.cue_for(hero,result)
@@ -319,14 +340,18 @@ class App(tk.Tk):
    else:
     self.last_visual_cue=None
     self.animation_director.clear()
-   game.save(DATA,self.c)
    if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
-    story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
+    story.ensure(self.c)['stage']=4
+    self.c['history'].append('The guardian has fallen. The way back to Elder Sera is clear.')
+   game.save(DATA,self.c)
    if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
    self._adventure()
    if result['roll_required']:self._roll_display(result)
    self._narrate(result['result'])
-  except ValueError as e:messagebox.showwarning('Action',str(e))
+  except ValueError as e:
+   messagebox.showwarning('Action',str(e))
+   if hasattr(self,'dm_status') and self.dm_status.winfo_exists():
+    self.dm_status.config(text='Ready for your next action')
  def _roll_display(self,result):
   win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
   outer,f=self.card(win,'The Twenty-Sided Die');outer.pack(fill='both',expand=True,padx=16,pady=14)
@@ -412,6 +437,11 @@ class App(tk.Tk):
      if status=='updated':
       if self.c:self._adventure()
       else:self._home()
+    if kind=='intent':
+     campaign_id,token,text,intent=value
+     if self.c and self.c['id']==campaign_id and token==self._intent_generation:
+      self.busy=False
+      self._resolve_action(text,intent)
     if kind=='story':
      self.busy=False
      if hasattr(self,'dm_status') and self.dm_status.winfo_exists():self.dm_status.config(text='Ready for your next action')
