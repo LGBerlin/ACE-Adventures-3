@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates
+import game,ai,story,art,ai_connections,addon_updates,comfy_art
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#202b2b';PARCH='#ead5ae';INK='#423126';BRASS='#b9955c';WOOD='#49352b';LIGHT='#f7e6c2'
 class App(tk.Tk):
@@ -34,6 +34,7 @@ class App(tk.Tk):
   self.label(inside,'Ollama: storytelling and action interpretation\nComfyUI: optional offline artwork generation (not live gameplay)',11,wraplength=450).pack(anchor='w',padx=12)
   self.label(inside,'Content updates: '+self.update_status,11,wraplength=450).pack(anchor='w',padx=12,pady=4)
   self.button(inside,'CHECK FOR CONTENT UPDATES',self._check_content_updates,True).pack(padx=12,pady=4)
+  self.button(inside,'GENERATE LOCATION ART (COMFYUI)',lambda:self._generate_scene(popup,status),True).pack(padx=12,pady=4)
   def worker():
    result=ai_connections.all_statuses(timeout=2)
    self.q.put(('services',(popup,status,result)))
@@ -169,6 +170,17 @@ class App(tk.Tk):
    except Exception:message='The Dungeon Master is unavailable. Your dice results and campaign remain saved.'
    self.q.put(('story',(identity,message)))
   threading.Thread(target=worker,daemon=True).start()
+ def _generate_scene(self,popup,status):
+  """Explicit opt-in ComfyUI generation; never run image models inside Tk."""
+  place=self.c.get('location','square') if self.c else 'square'
+  if popup.winfo_exists():status.config(text='ComfyUI: generating '+place+' artwork. This may take several minutes...')
+  def worker():
+   try:
+    result=comfy_art.generate(place,DATA)
+    self.q.put(('generated',(popup,status,place,str(result),None)))
+   except Exception as e:
+    self.q.put(('generated',(popup,status,place,None,str(e)[:200])))
+  threading.Thread(target=worker,daemon=True).start()
  def _check_content_updates(self):
   """Network and disk activity happen outside Tk's event loop."""
   def worker():
@@ -183,6 +195,13 @@ class App(tk.Tk):
      popup,label,result=value
      if popup.winfo_exists():
       label.config(text='\n'.join(k.title()+': '+v['message'] for k,v in result.items()))
+    if kind=='generated':
+     popup,label,place,path,error=value
+     if popup.winfo_exists():
+      label.config(text=('Illustration saved for '+place if path else 'ComfyUI: '+str(error)))
+     if path:
+      if self.c:self._adventure()
+      else:self._home()
     if kind=='updates':
      status,version=value
      self.update_status=('Art and stories updated to '+version if status=='updated' else
