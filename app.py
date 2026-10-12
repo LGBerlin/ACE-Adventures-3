@@ -42,6 +42,7 @@ class App(tk.Tk):
   self.label(bar,'❦  '+title.upper(),11,BRASS,'#33261e').pack(side='left',padx=14)
   self.button(bar,'THE CHRONICLES',self._home).pack(side='right',padx=12)
   self.button(bar,'AI CONNECTIONS',self._connections).pack(side='right',padx=5)
+  self.button(bar,'CHECK UPDATES',self._check_content_updates).pack(side='right',padx=5)
  def card(self,parent,title=''):
   outer=tk.Frame(parent,bg=WOOD,bd=4,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=2);inner.pack(fill='both',expand=True,padx=4,pady=4)
   if title:
