@@ -3,7 +3,7 @@
 Never let narration or intent classification bypass the deterministic quest gates.
 """
 import re
-import game,story,dice_ledger,merchant,equipment
+import game,story,dice_ledger,merchant,equipment,party_commands
 
 LOCATION_WORDS={
  'square':('square','town square','village square'),
@@ -44,6 +44,10 @@ def perform(c,text,rng=None):
     if not text:raise ValueError('Describe what you want to do.')
     if not c.get('started'):raise ValueError('Start the campaign first.')
     lower=' '.join(text.casefold().split())
+    member=party_commands.parse(text)
+    if member is not None:
+        msg=party_commands.choose(c,member)
+        return {'roll_required':False,'result':msg,'action':text,'choice':'party'}
     consume=re.fullmatch(r'(?:i\s+)?(?:want to |would like to |please )?(?:use|drink|consume)\s+(?:a |an |the |my )?(.+?)[.!]?',lower)
     if consume:
         item=next((item for item in ('Healing Draught','Health Potion') if item.casefold()==consume.group(1).strip()),None)
