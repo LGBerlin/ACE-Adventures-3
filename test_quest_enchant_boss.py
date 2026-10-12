@@ -37,6 +37,14 @@ class PhaseOneQuestBattleTests(unittest.TestCase):
   self.assertIsNone(self.c["enemy"])
   self.assertIn("Hollow Guardian Relic",hero["inventory"])
   self.assertTrue(self.c["loot_history"][-1]["boss"])
+ def test_boss_relic_can_be_sold_but_not_purchased(self):
+  self.c["location"]="market"
+  h=self.c["characters"][0]
+  with self.assertRaises(ValueError):merchant.buy(self.c,"Hollow Guardian Relic")
+  h["inventory"].append("Hollow Guardian Relic")
+  gold=h["gold"]
+  merchant.sell(self.c,"Hollow Guardian Relic")
+  self.assertEqual(h["gold"],gold+40)
  def test_loot_can_be_sold(self):
   self.c["quest"]={"stage":3,"completed":False}
   game.encounter(self.c,random.Random(3))
