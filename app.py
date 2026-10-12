@@ -164,8 +164,15 @@ class App(tk.Tk):
   members=tk.Frame(party_inside,bg=PARCH)
   members.pack(fill='x',padx=12,pady=7)
   for i,h in enumerate(self.c['characters']):
-   line=('%s  ·  %s  ·  HP %s/%s'%(h['name'],game.display_archetype(h),h['hp'],h['max_hp']))
-   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).pack(side='left',padx=3,pady=3)
+   selected=i==self.c['active']
+   hero_frame=tk.Frame(members,bg=visual_theme.COLORS['parchment_light'] if selected else PARCH,
+                       highlightbackground=BRASS if selected else visual_theme.COLORS['parchment_shadow'],
+                       highlightthickness=2 if selected else 1)
+   hero_frame.pack(side='left',fill='x',expand=True,padx=4,pady=2)
+   title=('◆ ' if selected else '◇ ')+h['name']+' · Lv '+str(h['level'])
+   self.button(hero_frame,title,lambda i=i:self._switch(i),True).pack(fill='x',padx=3,pady=(3,0))
+   self.label(hero_frame,game.display_archetype(h),10,bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=2)
+   self.label(hero_frame,'HP '+str(h['hp'])+'/'+str(h['max_hp'])+'  ·  MP '+str(h['mana'])+'/'+str(h['max_mana']),10,bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=(0,4))
   outer,f=self.card(left,story.PLACES[self.c['location']][0])
   outer.pack(fill='both',expand=True)
   cv=tk.Canvas(f,height=225,bg=DARK,highlightthickness=0)
@@ -173,9 +180,9 @@ class App(tk.Tk):
   cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
   self.label(f,story.journal(self.c),15,wraplength=650).pack(anchor='w',padx=18,pady=5)
   self.label(f,story.flavour(self.c,DATA),12,wraplength=650).pack(anchor='w',padx=18,pady=4)
-  historybox=tk.Frame(f,bg='#f7e7c6',highlightbackground=BRASS,highlightthickness=1)
+  historybox=tk.Frame(f,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
   historybox.pack(fill='both',expand=True,padx=14,pady=(6,9))
-  history=tk.Text(historybox,font=('Georgia',12),bg='#f7e7c6',fg=INK,relief='flat',wrap='word',height=7,padx=10,pady=8)
+  history=tk.Text(historybox,font=('Georgia',12),bg=visual_theme.COLORS['parchment_light'],fg=INK,relief='flat',wrap='word',height=7,padx=10,pady=8)
   history.pack(side='left',fill='both',expand=True)
   scroll=tk.Scrollbar(historybox,command=history.yview)
   scroll.pack(side='right',fill='y')
@@ -188,8 +195,12 @@ class App(tk.Tk):
    foe=self.c['enemy']
    battle=tk.Frame(f,bg='#513322',highlightbackground=BRASS,highlightthickness=2)
    battle.pack(fill='x',padx=14,pady=5)
-   self.label(battle,f"⚔ BATTLE · {foe['name']} · HP {foe['hp']}/{foe.get('max_hp',foe['hp'])}",13,LIGHT,'#513322').pack(anchor='w',padx=10,pady=5)
-   actions=tk.Frame(battle,bg='#513322');actions.pack(fill='x',padx=8,pady=4)
+   self.label(battle,'⚔  ENCOUNTER  ·  '+foe['name'].upper(),13,LIGHT,WOOD).pack(anchor='w',padx=10,pady=(8,2))
+   self.label(battle,'ENEMY HEALTH  '+str(foe['hp'])+'/'+str(foe.get('max_hp',foe['hp'])),10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=2)
+   meter_canvas=tk.Canvas(battle,width=320,height=14,bg=WOOD,highlightthickness=0)
+   meter_canvas.pack(anchor='w',padx=10,pady=(0,7))
+   visual_theme.meter(meter_canvas,foe['hp'],foe.get('max_hp',foe['hp']),width=320,fill=visual_theme.COLORS['danger'])
+   actions=tk.Frame(battle,bg=WOOD);actions.pack(fill='x',padx=8,pady=4)
    if self.c.get('party_defeated'):
     self.button(actions,'RECOVER IN TOWN',lambda:self._free('recover party'),True).pack(side='left',padx=4)
    else:
