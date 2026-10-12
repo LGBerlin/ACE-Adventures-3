@@ -127,9 +127,11 @@ class App(tk.Tk):
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
    size=max(1,min(3,int(h/120)))
+   cv.create_oval(round(w*.08),round(h*.78),round(w*.34),round(h*.84),fill='#403c35',outline='#c5a16e',width=2)
    art.character(cv,round(w*.15),round(h*.32),hero['class'],hero['sprite_seed'],size)
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
+   cv.create_oval(round(w*.67),round(h*.79),round(w*.91),round(h*.85),fill='#403c35',outline='#c5a16e',width=2)
    art.enemy(cv,round(w*.78),round(h*.55),enemy['name'],self.c['world_seed'],size)
    cv.create_text(round(w*.75),round(h*.92),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',12,'bold'))
    if self.last_visual_cue:
