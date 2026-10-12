@@ -109,6 +109,8 @@ def enemy_response(c,hero,rng,guard=0):
     else:
         move='Counterattack'
         rolled=rng.randint(1,4)
+    if enemy.pop('weakened',False):
+        rolled=max(0,rolled-2)
     defense=loot_system.bonuses(hero)['defense']
     if enemy.pop('staggered',False):
         return 'The enemy is staggered and cannot retaliate.'
@@ -251,6 +253,10 @@ def action(c,text,rng=None):
                 # Distinguish class actions from a basic weapon swing.
                 # Bonus scales gently with progression and stays deterministic.
                 dmg+=1+hero['level']//6+min(4,sum(' Mastery ' in p for p in hero.get('passives',[]))//2)
+            if known and ability_role in ('damage','control'):
+                bonus,flavour=ability_effects.offensive_effect(c,hero,known)
+                dmg+=bonus
+                if flavour:outcome.append(flavour)
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
             if ability_role=='control' and c['enemy']['hp']>0:outcome.append(ability_effects.apply_control(c,hero,known,True))
