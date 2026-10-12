@@ -19,6 +19,8 @@ JOBS={
  "Herbalist Consultation":{"goal":"market","npc":"Yarrow","reward_gold":9,"reward_xp":12},
  "Inn Rumors":{"goal":"tavern","npc":"Tomas","reward_gold":8,"reward_xp":10},
  "Medicine Delivery":{"goal":"market","item":"Healing Draught","reward_gold":16,"reward_xp":14},
+ "Armory Requisition":{"goal":"market","item":"Iron Sword","reward_gold":26,"reward_xp":20,"requires_jobs":2},
+ "Veteran Reconnaissance":{"goal":"tavern","npc":"Tomas","reward_gold":22,"reward_xp":24,"requires_jobs":4},
 }
 def note_conversation(c,person):
  """Record a conversation whichever narrative handler owns that NPC."""
@@ -48,6 +50,7 @@ def talk(c,name):
 def accept(c,name):
  if not c.get("started") or c.get("enemy") or c.get("location")!="square":raise ValueError("Visit the guild captain in the square.")
  if name not in JOBS:raise ValueError("Unknown guild job.")
+ if c.get("guild_jobs_completed",0)<JOBS[name].get("requires_jobs",0):raise ValueError("Higher guild reputation is required for this assignment.")
  if c.get("guild_job"):raise ValueError("Only one guild assignment can accompany the main quest: two active quests maximum.")
  c["guild_job"]={"name":name,"start_turn":c["turn"],"origin":c["location"],"visited_goal":False,"spoke_to_target":False}
  c["history"].append("Accepted guild job: "+name)
@@ -120,3 +123,10 @@ def quest_status(c):
   for entry in entries:
    if entry["kind"]=="guild":entry["objective"]=objective
  return entries
+
+def guild_rank(c):
+ count=c.get("guild_jobs_completed",0)
+ return "Veteran" if count>=4 else "Trusted" if count>=2 else "Novice"
+def available_jobs(c):
+ count=c.get("guild_jobs_completed",0)
+ return [name for name,spec in JOBS.items() if count>=spec.get("requires_jobs",0)]
