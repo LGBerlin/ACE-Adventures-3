@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import merchant,equipment
+import merchant,equipment,atlas,dice_ledger
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
@@ -201,7 +201,7 @@ class App(tk.Tk):
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree','Shop']):
+  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree','Shop','Map','Dice Board']):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
    self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
@@ -249,8 +249,39 @@ class App(tk.Tk):
      line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
      self.label(line,item,10).pack(side='left')
      self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
+  elif self.panel=='Map':
+   self._minimap(txt)
+  elif self.panel=='Dice Board':
+   records=dice_ledger.history(self.c)
+   if not records:self.label(txt,'No dice rolled yet. Mundane actions do not need a roll.',11,wraplength=270).pack(anchor='w',pady=7)
+   for record in reversed(records[-12:]):
+    self.label(txt,f"D20 {record['roll']} {record['modifier']:+d} = {record['total']} / DC {record['dc']}",11).pack(anchor='w',pady=2)
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
+ def _minimap(self,parent):
+  """Interactive map mirrors quest routes; clicking is rules-gated."""
+  state=atlas.state(self.c)
+  canvas=tk.Canvas(parent,width=270,height=225,bg='#e8d5aa',highlightbackground=BRASS,highlightthickness=2)
+  canvas.pack(pady=9)
+  by_id={node['id']:node for node in state['nodes']}
+  for start,end in state['roads']:
+   a,b=by_id[start],by_id[end]
+   canvas.create_line(a['x']*2.4,a['y']*2.0+10,b['x']*2.4,b['y']*2.0+10,fill='#987b56',width=3,dash=(5,3))
+  for node in state['nodes']:
+   x,y=node['x']*2.4,node['y']*2.0+10
+   color='#486742' if node['current'] else '#8f653b' if node['reachable'] else '#aea18b'
+   tag='place_'+node['id']
+   canvas.create_oval(x-8,y-8,x+8,y+8,fill=color,outline=INK,tags=(tag,))
+   canvas.create_text(x,y+16,text=node['label'],font=('Georgia',8),fill=INK,tags=(tag,))
+   if node['reachable']:
+    canvas.tag_bind(tag,'<ButtonRelease-1>',lambda event,dest=node['id']:self._map_travel(dest))
+  self.label(parent,'Green: party location · Brown: available road',10,wraplength=260).pack(anchor='w')
+ def _map_travel(self,destination):
+  try:
+   atlas.travel(self.c,destination)
+   game.save(DATA,self.c)
+   self._adventure()
+  except ValueError as exc:messagebox.showwarning('Map',str(exc))
  def _trade(self,operation,item):
   try:
    if operation=='buy':merchant.buy(self.c,item)
