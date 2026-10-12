@@ -54,11 +54,8 @@ def select(c,choice):
         else:msg='Mira pours a fresh drink and asks whether you found the well.'
     elif choice=='yarrow' and p=='market':msg='Yarrow remembers a guardian bound to an old ruin among the pines.'
     elif choice=='buy_potion' and p=='market':
-        hero=c['characters'][c['active']]
-        if hero['gold']<9:raise ValueError('You need 9 gold to buy the draught.')
-        hero['gold']-=9
-        hero['inventory'].append('Healing Draught')
-        msg=hero['name']+' buys a healing draught for 9 gold.'
+        import merchant
+        msg=merchant.buy(c,'Healing Draught')
     elif choice=='runes' and p=='well' and choice in {a for _,a in options(c)}:
         if s==2:q['stage']=3;msg='The carved runes name a Hollow Guardian. Fresh tracks run into Ashwood.';dungeon_master.discover(c,'Fresh tracks lead to Ashwood and the Hollow Guardian.')
         else:msg='The carved warning is still there, beneath the damp moss.'
