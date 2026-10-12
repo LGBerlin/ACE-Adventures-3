@@ -117,6 +117,22 @@ def enemy_response(c,hero,rng,guard=0):
     prefix='Boss uses '+move+'. ' if enemy.get('boss') else ''
     return prefix+('Enemy retaliates for '+str(damage)+' HP.' if damage else 'The attack is blocked.')
 
+def retreat_to_town(c):
+    """Emergency defeat recovery, without defeating the enemy or granting rewards."""
+    if not c.get('started') or not c.get('enemy'):raise ValueError('Retreat requires an active encounter.')
+    if not c.get('party_defeated'):raise ValueError('Retreat is only available after the whole party falls.')
+    c['enemy']=None
+    c['location']='square'
+    c['party_defeated']=False
+    for hero in c['characters']:
+        hero['hp']=max(1,hero['max_hp']//4)
+        hero['mana']=max(0,hero['max_mana']//4)
+        hero['gold']=max(0,hero['gold']-3)
+    c['turn']+=1
+    msg='The village healers retrieve the defeated party. Everyone recovers to one-quarter health; each loses up to 3 gold.'
+    c['history'].append(msg)
+    return msg
+
 def use_item(c,item,hero_index=None,rng=None):
     """Use inventory items with authoritative, persisted effects.
 
