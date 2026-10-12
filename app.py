@@ -193,19 +193,28 @@ class App(tk.Tk):
   history.see('end')
   if self.c.get('enemy'):
    foe=self.c['enemy']
-   battle=tk.Frame(f,bg='#513322',highlightbackground=BRASS,highlightthickness=2)
+   battle=tk.Frame(f,bg=WOOD,highlightbackground=BRASS,highlightthickness=2)
    battle.pack(fill='x',padx=14,pady=5)
-   self.label(battle,'⚔  ENCOUNTER  ·  '+foe['name'].upper(),13,LIGHT,WOOD).pack(anchor='w',padx=10,pady=(8,2))
-   self.label(battle,'ENEMY HEALTH  '+str(foe['hp'])+'/'+str(foe.get('max_hp',foe['hp'])),10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=2)
+   self.label(battle,'⚔  ENCOUNTER  ·  '+foe['name'].upper(),13,LIGHT,WOOD).pack(anchor='w',padx=10,pady=(7,2))
+   phase=(' · PHASE '+str(foe.get('phase',1))) if foe.get('boss') else ''
+   self.label(battle,'ENEMY HEALTH  '+str(foe['hp'])+'/'+str(foe.get('max_hp',foe['hp']))+phase,10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=2)
    meter_canvas=tk.Canvas(battle,width=320,height=14,bg=WOOD,highlightthickness=0)
-   meter_canvas.pack(anchor='w',padx=10,pady=(0,7))
+   meter_canvas.pack(anchor='w',padx=10,pady=(0,5))
    visual_theme.meter(meter_canvas,foe['hp'],foe.get('max_hp',foe['hp']),width=320,fill=visual_theme.COLORS['danger'])
-   actions=tk.Frame(battle,bg=WOOD);actions.pack(fill='x',padx=8,pady=4)
+   hero=self.c['characters'][self.c['active']]
+   self.label(battle,'ACTIVE HERO  ·  '+hero['name']+'  ·  HP '+str(hero['hp'])+'/'+str(hero['max_hp'])+'  ·  MP '+str(hero['mana'])+'/'+str(hero['max_mana']),10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=3)
+   recent=dice_ledger.history(self.c)
+   if recent:
+    last=recent[-1]
+    self.label(battle,'LAST ROLL   D20 '+str(last['roll'])+'  '+f"{last['modifier']:+d}"+' = '+str(last['total'])+' / DC '+str(last['dc']),10,visual_theme.COLORS['brass_light'],WOOD).pack(anchor='w',padx=10,pady=3)
+   actions=tk.Frame(battle,bg=WOOD);actions.pack(fill='x',padx=8,pady=(5,8))
    if self.c.get('party_defeated'):
     self.button(actions,'RECOVER IN TOWN',lambda:self._free('recover party'),True).pack(side='left',padx=4)
    else:
     for caption,command in [('ATTACK','I attack the enemy'),('GUARD','I guard'),('NEGOTIATE','I negotiate')]:
      self.button(actions,caption,lambda command=command:self._free(command),True).pack(side='left',padx=4)
+    self.button(actions,'ABILITIES',lambda:self._panel('Abilities'),True).pack(side='left',padx=4)
+    self.button(actions,'POTIONS',lambda:self._panel('Pack'),True).pack(side='left',padx=4)
   if self.busy:
    self.label(f,'The Dungeon Master is preparing the next passage...',11).pack(anchor='w',padx=16,pady=3)
   self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
@@ -352,9 +361,14 @@ class App(tk.Tk):
    self._minimap(txt)
   elif self.panel=='Dice Board':
    records=dice_ledger.history(self.c)
-   if not records:self.label(txt,'No dice rolled yet. Mundane actions do not need a roll.',11,wraplength=270).pack(anchor='w',pady=7)
-   for record in reversed(records[-12:]):
-    self.label(txt,f"D20 {record['roll']} {record['modifier']:+d} = {record['total']} / DC {record['dc']}",11).pack(anchor='w',pady=2)
+   self.label(txt,'THE FATES · D20 LEDGER',13).pack(anchor='w',pady=(2,8))
+   self.label(txt,'Only uncertain actions require a die roll.',10,wraplength=260).pack(anchor='w',pady=(0,7))
+   if not records:self.label(txt,'No dice rolled yet.',11).pack(anchor='w',pady=7)
+   for record in reversed(records[-20:]):
+    line=tk.Frame(txt,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
+    line.pack(fill='x',pady=3)
+    self.label(line,'D20  '+str(record['roll'])+'  '+f"{record['modifier']:+d}"+'  = '+str(record['total']),12,bg=visual_theme.COLORS['parchment_light']).pack(anchor='w',padx=8,pady=(5,0))
+    self.label(line,'DC '+str(record['dc'])+'  ·  '+str(record.get('degree','')),10,bg=visual_theme.COLORS['parchment_light'],wraplength=245).pack(anchor='w',padx=8,pady=(0,5))
   elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
  def _minimap(self,parent):
