@@ -18,6 +18,7 @@ JOBS={
  "Village Patrol":{"goal":"tavern","reward_gold":7,"reward_xp":10},
  "Herbalist Consultation":{"goal":"market","npc":"Yarrow","reward_gold":9,"reward_xp":12},
  "Inn Rumors":{"goal":"tavern","npc":"Tomas","reward_gold":8,"reward_xp":10},
+ "Medicine Delivery":{"goal":"market","item":"Healing Draught","reward_gold":16,"reward_xp":14},
 }
 def note_conversation(c,person):
  """Record a conversation whichever narrative handler owns that NPC."""
@@ -33,7 +34,13 @@ def talk(c,name):
  if not c.get("started") or c.get("enemy"):raise ValueError("Conversation is unavailable.")
  person=next((person for person in PEOPLE if person.casefold()==str(name).casefold()),None)
  if person is None or PEOPLE[person]["place"]!=c["location"]:raise ValueError("That townsfolk member is not here.")
- msg=person+": "+PEOPLE[person]["line"]
+ memory=c.setdefault("town_memory",{})
+ count=memory.get(person,0)
+ line=PEOPLE[person]["line"]
+ if count>0:
+  line+=" Welcome back." if count==1 else " You've become a familiar face."
+ memory[person]=min(count+1,100)
+ msg=person+": "+line
  if note_conversation(c,person):
   msg+=" You have gathered the information for your guild assignment."
  c["history"].append(msg);c["turn"]+=1
@@ -62,9 +69,14 @@ def complete(c):
   raise ValueError("Return to Captain Rowan in the square to claim your reward.")
  import game
  h=c["characters"][c["active"]]
+ item=details.get("item")
+ if item and item not in h["inventory"]:
+  raise ValueError("Bring the required item to the guild captain.")
+ if item:h["inventory"].remove(item)
  h["gold"]+=details["reward_gold"]
  game.award_experience(h,details["reward_xp"])
  c["guild_job"]=None
+ c["guild_jobs_completed"]=c.get("guild_jobs_completed",0)+1
  c["history"].append("Guild job completed: "+job["name"])
  c["turn"]+=1
  return c["history"][-1]
@@ -101,6 +113,8 @@ def quest_status(c):
    objective="Travel to the "+spec["goal"]
   elif spec.get("npc") and not job.get("spoke_to_target"):
    objective="Speak with "+spec["npc"]
+  elif spec.get("item") and spec["item"] not in c["characters"][c["active"]]["inventory"]:
+   objective="Obtain "+spec["item"]
   else:
    objective="Return to Captain Rowan in the square"
   for entry in entries:
