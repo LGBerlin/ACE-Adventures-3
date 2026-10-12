@@ -23,6 +23,8 @@ class IllustratedWindowFlow(unittest.TestCase):
      self.assertTrue(any(isinstance(w,tk.Canvas) for w in self._walk(root)))
     root._panel('Pack');root.update_idletasks()
     root._panel('Journal');root.update_idletasks()
+    root._panel('Map');root.update_idletasks()
+    root._panel('Dice Board');root.update_idletasks()
     story.select(c,'encounter');root._adventure();root.update_idletasks()
     root._switch(1);root.update_idletasks()
     self.assertEqual(c['active'],1)
