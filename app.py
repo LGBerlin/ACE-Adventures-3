@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ui_character_sheet
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
@@ -188,6 +188,7 @@ class App(tk.Tk):
   cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
   self.label(f,h['name'],20).pack(padx=14)
   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+  self.button(f,'OPEN FULL CHARACTER SHEET',lambda:ui_character_sheet.open_sheet(self,h),True).pack(fill='x',padx=12,pady=4)
   self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree']):
