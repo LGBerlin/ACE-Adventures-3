@@ -210,6 +210,11 @@ def action(c,text,rng=None):
     ability_role=ability_effects.role(hero,known)
     defensive=bool(c.get('enemy')) and (ability_role=='ward' or (not known and any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover'))))
     cost=3 if known and not defensive else 0
+    if cost:
+        import loot_system
+        # A magic focus reduces the effort to invoke learned abilities,
+        # without permitting free unlimited spellcasting.
+        cost=max(1,cost-min(2,loot_system.bonuses(hero)['mana']))
     # Learned techniques use the same resource and attack rules as spells.
     # An ability with a defensive name remains a guard, not a free attack.
     if hero['mana']<cost:raise ValueError('Not enough mana.')
