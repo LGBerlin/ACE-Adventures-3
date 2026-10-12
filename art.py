@@ -30,7 +30,13 @@ def _addon_background(cv,place,battle,width,height):
   from update_addons import active_asset
   storage=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
   slot='battle' if battle else place
-  path=active_asset(storage,'assets/locations/'+slot+'.png')
+  generated=storage/'generated'/'locations'
+  custom=generated/(slot+'.png')
+  path=None
+  if generated.is_dir() and not generated.is_symlink() and custom.is_file() and not custom.is_symlink():
+   resolved=custom.resolve()
+   if resolved.is_relative_to(generated.resolve()):path=resolved
+  if path is None:path=active_asset(storage,'assets/locations/'+slot+'.png')
   if path is None:return False
   image=tk.PhotoImage(master=cv,file=str(path))
   # Prefer a predictable native image size: assets are designed for 760x310.
