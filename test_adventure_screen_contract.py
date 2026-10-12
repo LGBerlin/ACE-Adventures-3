@@ -15,8 +15,10 @@ class AdventureScreenContractTests(unittest.TestCase):
   screen=self.methods['_adventure']
   self.assertIn("'Your party'",screen)
   sidebar=self.methods['_sidebar']
+  import visual_theme
+  self.assertIn('visual_theme.NAVIGATION',sidebar)
   for label in ('Character Sheet','Inventory','Abilities','Journal','Story Tree'):
-   self.assertIn(label,sidebar)
+   self.assertIn(label,visual_theme.NAVIGATION)
  def test_roll_only_on_checked_action(self):
   handler=self.methods['_free']
   self.assertIn("interaction.perform(self.c,text)",handler)
