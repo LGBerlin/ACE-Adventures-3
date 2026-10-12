@@ -36,6 +36,8 @@ class ScrollAndEnchantTests(unittest.TestCase):
   h["inventory"].append("Chainmail")
   loot_system.equip(c,"Chainmail")
   old=loot_system.bonuses(h)["defense"]
-  loot_system.enchant(c,"Chainmail")
+  class FrostSpin:
+   def randrange(self,n):return 1
+  loot_system.enchant(c,"Chainmail",FrostSpin())
   self.assertEqual(loot_system.bonuses(h)["defense"],old+1)
 if __name__=="__main__":unittest.main()
