@@ -29,7 +29,9 @@ def bonuses(h):
  for kind,item in h.get("gear_slots",{}).items():
   spec=ITEMS.get(item)
   if spec and spec["kind"]==kind and item in h.get("inventory",[]) and h["class"] in spec["classes"]:
-   for field in result:result[field]+=spec.get(field,0)+ (h.get("enchantments",{}).get(item,0) if field=="attack" and kind=="weapon" else 0)
+   for field in result:
+    relevant=(field=="attack" and kind=="weapon") or (field=="defense" and kind=="armor") or (field=="mana" and kind=="trinket")
+    result[field]+=spec.get(field,0)+(h.get("enchantments",{}).get(item,0) if relevant else 0)
  return result
 def enchant(c,item):
  h=hero_for(c)
