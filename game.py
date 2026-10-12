@@ -31,6 +31,27 @@ def character(name,age,kind,rng=None):
     mana=max(0,{'Rogue':6,'Mage':24,'Fighter':3,'Vessel':15}[kind]+rng.randint(-2,3))
     return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':SPELLS[magic] if kind=='Mage' else MOVES[path],'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
 
+def award_experience(hero,amount):
+    """Award XP via verified game rules, never from LLM narration."""
+    if not isinstance(amount,int) or isinstance(amount,bool) or amount<0 or amount>10000:
+        raise ValueError('Invalid experience award')
+    hero['xp']+=amount
+    changes=[]
+    while hero['level']<5 and hero['xp']>=50*hero['level']:
+        hero['xp']-=50*hero['level']
+        hero['level']+=1
+        hero['max_hp']+=3
+        hero['hp']=min(hero['max_hp'],hero['hp']+3)
+        hero['max_mana']+=3
+        hero['mana']=min(hero['max_mana'],hero['mana']+3)
+        if hero['class']=='Mage' and hero.get('magic') in SPELLS:
+            import spell_catalog
+            for name in spell_catalog.unlocked(hero['magic'],hero['level']):
+                if name not in hero['moves']:
+                    hero['moves'].append(name)
+                    changes.append(name)
+    return changes
+
 def new_campaign(title,players):
     if not title.strip() or len(title)>60 or not 1<=int(players)<=8:raise ValueError('Choose a campaign title and 1–8 players.')
     return {'id':uuid.uuid4().hex,'title':title.strip(),'players':int(players),'characters':[],'active':0,'started':False,'location':'square','town':copy.deepcopy(TOWN),'enemy':None,'history':[],'turn':0,'world_seed':random.randrange(2**31)}
@@ -104,7 +125,8 @@ def action(c,text,rng=None):
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
         if c['enemy']['hp']==0:
-            outcome.append('Enemy defeated, +10 XP, +8 gold.');hero['xp']+=10;hero['gold']+=8;c['enemy']=None
+            outcome.append('Enemy defeated, +10 XP, +8 gold.');new_spells=award_experience(hero,10);hero['gold']+=8;c['enemy']=None
+            if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
             dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
     elif defensive:
