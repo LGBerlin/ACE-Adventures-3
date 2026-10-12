@@ -30,7 +30,7 @@ class AdventureWindowAcceptance(unittest.TestCase):
                 for tab in ('Record','Pack','Abilities','Journal','Story Tree'):
                     window._panel(tab)
                     window.update_idletasks()
-                for step in ('elder','tavern','mira','well','runes','forest'):
+                for step in ('elder','tavern','mira','square','well','runes','forest'):
                     story.select(campaign,step)
                 window._adventure()
                 window.update_idletasks()
