@@ -54,7 +54,10 @@ def select(c,choice):
     elif choice=='mira' and p=='tavern' and choice in {a for _,a in options(c)}:
         if s==1:q['stage']=2;msg='Mira admits hearing the sound rise from the sealed well. She points toward the northern lane.';dungeon_master.discover(c,'The bell sounds from the sealed well.')
         else:msg='Mira pours a fresh drink and asks whether you found the well.'
-    elif choice=='yarrow' and p=='market':msg='Yarrow remembers a guardian bound to an old ruin among the pines.'
+    elif choice=='yarrow' and p=='market':
+        import town_services
+        town_services.note_conversation(c,'Yarrow')
+        msg='Yarrow remembers a guardian bound to an old ruin among the pines.'
     elif choice=='buy_potion' and p=='market':
         import merchant
         msg=merchant.buy(c,'Healing Draught')
