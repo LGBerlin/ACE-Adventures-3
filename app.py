@@ -2,7 +2,7 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import merchant
+import merchant,equipment
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
 from io import BytesIO
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
@@ -216,6 +216,10 @@ class App(tk.Tk):
     self.label(line,'◇  '+thing,12).pack(side='left')
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
+    elif thing in equipment.WEAPONS:
+     suffix=' (equipped)' if equipment.equipped(h)==thing else ''
+     if suffix:self.label(line,suffix,10).pack(side='left')
+     self.button(line,'EQUIP',lambda item=thing:self._equip(item),True).pack(side='right')
    self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
   elif self.panel=='Abilities':
    for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
@@ -255,6 +259,12 @@ class App(tk.Tk):
    game.save(DATA,self.c)
    self._adventure()
   except ValueError as exc:messagebox.showwarning("Yarrow's Apothecary",str(exc))
+ def _equip(self,item):
+  try:
+   equipment.equip(self.c,item)
+   game.save(DATA,self.c)
+   self._adventure()
+  except ValueError as e:messagebox.showwarning('Equipment',str(e))
  def _consume(self,item):
   try:
    game.use_item(self.c,item)
