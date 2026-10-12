@@ -110,6 +110,12 @@ def enemy_response(c,hero,rng,guard=0):
         move='Counterattack'
         rolled=rng.randint(1,4)
     defense=loot_system.bonuses(hero)['defense']
+    if enemy.pop('staggered',False):
+        return 'The enemy is staggered and cannot retaliate.'
+    ward=hero.get('ward_charges',0)
+    if ward:
+        hero['ward_charges']=ward-1
+        defense+=3
     damage=max(0,rolled-max(0,guard)-defense)
     hero['hp']=max(0,hero['hp']-damage)
     if not any(member['hp']>0 for member in c['characters']):
@@ -198,7 +204,9 @@ def action(c,text,rng=None):
                 raise ValueError('That spell or technique is not available to this character.')
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
-    defensive=bool(c.get('enemy')) and (bool(known and any(w in known.lower() for w in ('guard','ward','dodge','escape','stance','parry','counter'))) or any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover')))
+    import ability_effects
+    ability_role=ability_effects.role(hero,known)
+    defensive=bool(c.get('enemy')) and (ability_role=='ward' or (not known and any(re.search(r'(?<!\\w)'+w+r'(?!\\w)',t) for w in ('guard','defend','block','take cover'))))
     cost=3 if known and not defensive else 0
     # Learned techniques use the same resource and attack rules as spells.
     # An ability with a defensive name remains a guard, not a free attack.
@@ -218,10 +226,10 @@ def action(c,text,rng=None):
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
     hero['mana']-=cost
     outcome=[]
-    support_spell=known in ('Healing Wave','Mending Light','Restoration Prayer','Sanctuary','Mana Boost') and hero.get('magic')=='Support'
+    support_spell=ability_role in ('heal','mana') and bool(known)
     if support_spell:
         if degree in ('Success','Exceptional Success','Critical Success'):
-            if known=='Mana Boost':
+            if ability_role=='mana':
                 restored=min(hero['max_mana']-hero['mana'],4+hero['level'])
                 hero['mana']+=restored
                 outcome.append(f'{restored} mana restored.')
@@ -233,6 +241,9 @@ def action(c,text,rng=None):
             outcome.append('The support spell fails to take hold.')
         if c.get('enemy'):
             outcome.append(enemy_response(c,hero,rng))
+    elif ability_role=='ward' and known:
+        outcome.append(ability_effects.ward(hero,known,degree in ('Success','Exceptional Success','Critical Success')))
+        if c.get('enemy'):outcome.append(enemy_response(c,hero,rng))
     elif attack:
         if degree in ('Success','Exceptional Success','Critical Success'):
             dmg=rng.randint(1,6)+max(0,modifier)
@@ -242,6 +253,7 @@ def action(c,text,rng=None):
                 dmg+=1+hero['level']//6+min(4,sum(' Mastery ' in p for p in hero.get('passives',[]))//2)
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
+            if ability_role=='control' and c['enemy']['hp']>0:outcome.append(ability_effects.apply_control(c,hero,known,True))
         if c['enemy']['hp']==0:
             outcome.append('Enemy defeated, +10 XP to the victor, +5 XP to each surviving ally, +8 gold.')
             new_spells=award_experience(hero,10+max(0,(hero['stats'].get('INT',10)-10)//3))
