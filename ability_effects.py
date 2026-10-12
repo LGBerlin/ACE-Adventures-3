@@ -23,7 +23,9 @@ def apply_control(c,hero,move,success):
     return move+' disrupts the enemy; its next retaliation is prevented.'
 def ward(hero,move,success):
     if not success:return 'The ward does not take hold.'
+    import ability_progression
     hero['ward_charges']=min(2,hero.get('ward_charges',0)+1)
+    hero['ward_strength']=min(6,max(0,ability_progression.rank(hero,move)//4))
     return move+' grants a protective ward against the next hit.'
 
 def offensive_effect(c,hero,move):
