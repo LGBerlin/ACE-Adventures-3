@@ -16,6 +16,7 @@ def equip(campaign,item):
     if item not in WEAPONS:raise ValueError("That item cannot be equipped as a weapon.")
     if item not in hero["inventory"]:raise ValueError("You do not own that weapon.")
     if hero["class"] not in WEAPONS[item]["classes"]:raise ValueError("This class cannot equip that weapon.")
+    hero.setdefault("gear_slots",{}).pop("weapon",None)
     hero["equipped_weapon"]=item
     message=f"{hero['name']} equips {item}."
     campaign["history"].append(message)
