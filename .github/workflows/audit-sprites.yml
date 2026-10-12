@@ -1,0 +1,65 @@
+name: Audit Original Sprite Library
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Download and audit release ZIP
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python - <<'PY'
+          import collections,csv,hashlib,json,os,pathlib,subprocess,sys,zipfile
+          out=pathlib.Path('sprite-audit');out.mkdir()
+          repo=os.environ['GITHUB_REPOSITORY']
+          release=subprocess.run(['gh','api',f'repos/{repo}/releases/tags/assets-v1'],capture_output=True,text=True,check=True)
+          data=json.loads(release.stdout)
+          assets=[a for a in data.get('assets',[]) if a.get('name','').lower().endswith('.zip')]
+          if not assets:raise SystemExit('Release has no ZIP attachments')
+          summary=[]
+          for asset in assets:
+              name=pathlib.PurePath(asset['name']).name
+              target=pathlib.Path(name)
+              # Authenticated release asset download supports private repositories.
+              with target.open('wb') as f:
+                  subprocess.run(['gh','api',f'repos/{repo}/releases/assets/{asset["id"]}','-H','Accept: application/octet-stream'],stdout=f,check=True)
+              item={'name':name,'bytes':target.stat().st_size,'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),'entries':0,'images':0,'licenses':[],'formats':{},'unsafe_paths':0,'corrupt_members':[]}
+              try:
+                  with zipfile.ZipFile(target) as z:
+                      count=collections.Counter()
+                      with (out/(name+'.csv')).open('w',newline='',encoding='utf-8') as csvfile:
+                          writer=csv.writer(csvfile);writer.writerow(['path','bytes','compressed_bytes','extension'])
+                          for info in z.infolist():
+                              path=pathlib.PurePosixPath(info.filename)
+                              if info.filename.startswith('/') or '..' in path.parts or '\\' in info.filename:item['unsafe_paths']+=1
+                              ext=path.suffix.lower()
+                              count[ext]+=1
+                              if ext in ('.png','.gif','.webp','.jpg','.jpeg'):item['images']+=1
+                              if 'license' in info.filename.lower() or 'credit' in info.filename.lower() or 'readme' in info.filename.lower():item['licenses'].append(info.filename)
+                              writer.writerow([info.filename,info.file_size,info.compress_size,ext])
+                      item['entries']=len(z.infolist());item['formats']=dict(count)
+                      # Verify compressed entries by streaming, never extracting into a filesystem.
+                      for info in z.infolist():
+                          if info.is_dir():continue
+                          try:
+                              with z.open(info) as stream:
+                                  while stream.read(1024*1024):pass
+                          except Exception as exc:item['corrupt_members'].append([info.filename,str(exc)[:150]])
+              except zipfile.BadZipFile as exc:item['error']=str(exc)
+              summary.append(item)
+              target.unlink()
+          (out/'report.json').write_text(json.dumps(summary,indent=2))
+          print(json.dumps([{k:v for k,v in item.items() if k!='licenses'} for item in summary],indent=2))
+          if any('error' in x or x['corrupt_members'] or x['unsafe_paths'] for x in summary):
+              raise SystemExit('Unsafe or corrupt archive; report still saved')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ACE Adventures 3 Sprite Inventory
+          path: sprite-audit/
+          if-no-files-found: warn
