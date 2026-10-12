@@ -27,7 +27,7 @@ def talk(c,name):
 def accept(c,name):
  if not c.get("started") or c.get("enemy") or c.get("location")!="square":raise ValueError("Visit the guild captain in the square.")
  if name not in JOBS:raise ValueError("Unknown guild job.")
- if c.get("guild_job"):raise ValueError("Finish your current guild job first.")
+ if c.get("guild_job"):raise ValueError("Only one guild assignment can accompany the main quest: two active quests maximum.")
  c["guild_job"]={"name":name,"start_turn":c["turn"]}
  c["history"].append("Accepted guild job: "+name)
  c["turn"]+=1
@@ -46,3 +46,13 @@ def complete(c):
  c["history"].append("Guild job completed: "+job["name"])
  c["turn"]+=1
  return c["history"][-1]
+
+def active_quests(c):
+ """The Hollow Bell main story plus at most one guild assignment."""
+ import story
+ quests=[]
+ if c.get("started") and not story.ensure(c)["completed"]:
+  quests.append({"name":"The Hollow Bell","kind":"main","stage":story.ensure(c)["stage"]})
+ if c.get("guild_job"):
+  quests.append({"name":c["guild_job"]["name"],"kind":"guild"})
+ return quests[:2]
