@@ -19,14 +19,22 @@ JOBS={
  "Herbalist Consultation":{"goal":"market","npc":"Yarrow","reward_gold":9,"reward_xp":12},
  "Inn Rumors":{"goal":"tavern","npc":"Tomas","reward_gold":8,"reward_xp":10},
 }
+def note_conversation(c,person):
+ """Record a conversation whichever narrative handler owns that NPC."""
+ job=c.get("guild_job")
+ if not job:return False
+ spec=JOBS.get(job["name"],{})
+ if spec.get("npc")==person and c.get("location")==spec.get("goal") and c.get("turn",0)>job["start_turn"]:
+  job["spoke_to_target"]=True
+  return True
+ return False
+
 def talk(c,name):
  if not c.get("started") or c.get("enemy"):raise ValueError("Conversation is unavailable.")
  person=next((person for person in PEOPLE if person.casefold()==str(name).casefold()),None)
  if person is None or PEOPLE[person]["place"]!=c["location"]:raise ValueError("That townsfolk member is not here.")
  msg=person+": "+PEOPLE[person]["line"]
- job=c.get("guild_job")
- if job and JOBS[job["name"]].get("npc")==person and c.get("location")==JOBS[job["name"]]["goal"] and c.get("turn",0)>job["start_turn"]:
-  job["spoke_to_target"]=True
+ if note_conversation(c,person):
   msg+=" You have gathered the information for your guild assignment."
  c["history"].append(msg);c["turn"]+=1
  return msg
