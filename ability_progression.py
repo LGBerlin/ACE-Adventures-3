@@ -30,13 +30,13 @@ def rank(hero,move):
     unlocked=required_level(hero,move)
     if unlocked is None:return 0
     level=max(1,min(100,int(hero.get('level',1))))
-    return 1+max(0,level-unlocked)//5
+    return 1+max(0,level-unlocked)//4
 
 def damage_bonus(hero,move):
     unlocked=required_level(hero,move)
     if unlocked is None:return 0
     quality=1+min(8,(unlocked-1)//10)
-    practice=min(8,max(0,hero.get('level',1)-unlocked)//10)
+    practice=min(8,max(0,hero.get('level',1)-unlocked)//4)
     return quality+practice
 
 def tier(hero,move):
