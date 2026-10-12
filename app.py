@@ -109,6 +109,16 @@ class App(tk.Tk):
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
   cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  if self.c and self.c.get('enemy') and self.c.get('characters'):
+   hero=self.c['characters'][self.c['active']]
+   art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
+   cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
+   enemy=self.c['enemy']
+   # Placeholder opponent remains visible until approved animation pack is installed.
+   art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
+   cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
+   if self.last_visual_cue:
+    cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
  def _switch(self,i):self.c['active']=i;game.save(DATA,self.c);self._adventure()
  def _adventure(self):
   self.page(story.journal(self.c));top=tk.Frame(self,bg=DARK);top.pack(fill='x',padx=13,pady=5)
