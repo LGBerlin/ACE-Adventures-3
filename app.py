@@ -80,9 +80,11 @@ class App(tk.Tk):
   self.button(inside,'RESTORE PREVIOUS CONTENT',self._rollback_content,True).pack(padx=12,pady=4)
   self.button(inside,'CHECK APP RELEASES (MANUAL INSTALL)',self._check_app_releases,True).pack(padx=12,pady=4)
   self.button(inside,'GENERATE LOCATION ART (COMFYUI)',lambda:self._generate_scene(popup,status),True).pack(padx=12,pady=4)
+  self._connections_target=(popup,status)
+  outbox=self.q
   def worker():
    result=ai_connections.all_statuses(timeout=2)
-   self.q.put(('services',(popup,status,result)))
+   outbox.put(('services',result))
   threading.Thread(target=worker,daemon=True).start()
  def _home(self):
   self.last_visual_cue=None;self.animation_director.clear();self.c=None;self.page('The Book of Unwritten Roads')
@@ -347,9 +349,9 @@ class App(tk.Tk):
    while True:
     kind,value=self.q.get_nowait()
     if kind=='services':
-     popup,label,result=value
-     if popup.winfo_exists():
-      label.config(text='\n'.join(k.title()+': '+v['message'] for k,v in result.items()))
+     target=getattr(self,'_connections_target',None)
+     if target and target[0].winfo_exists():
+      target[1].config(text='\n'.join(k.title()+': '+v['message'] for k,v in value.items()))
     if kind=='generated':
      popup,label,place,path,error=value
      if popup.winfo_exists():
