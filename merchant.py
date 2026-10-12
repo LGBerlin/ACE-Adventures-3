@@ -39,11 +39,12 @@ def buy(campaign, item):
     campaign["history"].append(result)
     campaign["turn"] += 1
     return result
+SALVAGE_VALUES={'Hollow Guardian Relic':40}
 def sell(campaign, item):
     hero = _hero(campaign)
-    if item not in CATALOG or item not in hero["inventory"]:
+    if (item not in CATALOG and item not in SALVAGE_VALUES) or item not in hero["inventory"]:
         raise ValueError("The merchant will not buy that item.")
-    price = max(1, CATALOG[item]["price"] // 2)
+    price = SALVAGE_VALUES.get(item) if item in SALVAGE_VALUES else max(1, CATALOG[item]["price"] // 2)
     hero["inventory"].remove(item)
     hero["gold"] += price
     result = f"{hero['name']} sells {item} for {price} gold."
