@@ -7,7 +7,7 @@ permissions:
   contents: read
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-15-arm64
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
@@ -18,7 +18,7 @@ jobs:
         run: |
           python - <<'PY'
           from pathlib import Path
-          required = ('app.py',)
+          required = ('app.py','game.py','story.py','dungeon_master.py','ai.py','ai_connections.py','update_addons.py','art.py')
           missing = [p for p in required if not Path(p).is_file()]
           if missing:
               raise SystemExit('Source not yet migrated: ' + ', '.join(missing))
