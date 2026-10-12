@@ -15,12 +15,14 @@ assert set(CLASS_ATTACKS)==set(CLASSES)
 
 def cue_for(hero,result):
     text=str(result.get('action','')).lower()
+    outcome=result.get('degree')
+    hit=outcome is None or outcome in ('Success','Exceptional Success','Critical Success')
     cls=hero.get('class','Fighter')
     if cls not in CLASS_ATTACKS:cls='Fighter'
     if any(x in text for x in ('guard','defend','shield','block')):
         return {'animation':'guard','effect':None}
     if any(x in text for x in ('cast','spell','flame','lightning','magic','heal')):
-        return {'animation':'cast','effect':MAGIC_EFFECTS.get(hero.get('magic'),'magic_impact')}
+        return {'animation':'cast','effect':MAGIC_EFFECTS.get(hero.get('magic'),'magic_impact') if hit else None}
     if any(x in text for x in ('attack','strike','stab','slash','shoot','punch','kick')):
-        return {'animation':'attack','effect':CLASS_ATTACKS[cls]}
+        return {'animation':'attack','effect':CLASS_ATTACKS[cls] if hit else None}
     return {'animation':'idle','effect':None}
