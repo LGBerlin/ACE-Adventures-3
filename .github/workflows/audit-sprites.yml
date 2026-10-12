@@ -27,7 +27,10 @@ jobs:
               # Authenticated release asset download supports private repositories.
               with target.open('wb') as f:
                   subprocess.run(['gh','api',f'repos/{repo}/releases/assets/{asset["id"]}','-H','Accept: application/octet-stream'],stdout=f,check=True)
-              item={'name':name,'bytes':target.stat().st_size,'sha256':hashlib.sha256(target.read_bytes()).hexdigest(),'entries':0,'images':0,'licenses':[],'formats':{},'unsafe_paths':0,'corrupt_members':[]}
+              digest=hashlib.sha256()
+              with target.open('rb') as stream:
+                  for chunk in iter(lambda:stream.read(1024*1024),b''):digest.update(chunk)
+              item={'name':name,'bytes':target.stat().st_size,'sha256':digest.hexdigest(),'entries':0,'images':0,'licenses':[],'formats':{},'unsafe_paths':0,'corrupt_members':[]}
               try:
                   with zipfile.ZipFile(target) as z:
                       count=collections.Counter()
