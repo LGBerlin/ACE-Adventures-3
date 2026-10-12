@@ -17,6 +17,9 @@ def validate(root, max_decoded_pixels=4_194_304, max_bytes_per_image=4_194_304):
     if not isinstance(data,dict) or not isinstance(data.get('assets'),dict):
         return {'ready':False,'errors':['Manifest malformed']}
     for key,item in data['assets'].items():
+        if not isinstance(item,dict):
+            errors.append(f'{key}: malformed asset entry')
+            continue
         if item.get('review')!='approved':errors.append(f'{key}: no explicit art approval')
         if not item.get('source_url') or not item.get('author') or not item.get('license'):
             errors.append(f'{key}: provenance or licence missing')
