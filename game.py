@@ -178,6 +178,9 @@ def action(c,text,rng=None):
     hero=c['characters'][c['active']];t=text.lower()
     if hero['hp']==0:raise ValueError('This character is incapacitated.')
     known=next((m for m in hero['moves'] if re.search(r'(?<!\w)'+re.escape(m.lower())+r'(?!\w)',t)),None)
+    # Generic spellcasting invokes an actually learned spell, never an invented one.
+    if not known and hero['class']=='Mage' and re.fullmatch(r'(?:i\s+)?cast (?:a |the |my )?spell',t):
+        known=hero['moves'][0] if hero['moves'] else None
     # Never let typed names of future skills bypass level requirements.
     if hero.get('class')=='Mage' and hero.get('magic') in SPELLS:
         import spell_catalog
