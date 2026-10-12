@@ -29,7 +29,7 @@ def character(name,age,kind,rng=None):
     stats={k:max(6,min(20,rng.randint(8,15)+b)) for k,b in zip(['STR','DEX','CON','INT','WIS','CHA'],bonuses)}
     hp=max(8,{'Rogue':18,'Mage':13,'Fighter':25,'Vessel':21}[kind]+(stats['CON']-10)//2+rng.randint(-2,2))
     mana=max(0,{'Rogue':6,'Mage':24,'Fighter':3,'Vessel':15}[kind]+rng.randint(-2,3))
-    return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':SPELLS[magic] if kind=='Mage' else MOVES[path],'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
+    return {'id':uuid.uuid4().hex,'name':name.strip(),'age':int(age),'class':kind,'path':path,'magic':magic,'level':1,'xp':0,'stats':stats,'hp':hp,'max_hp':hp,'mana':mana,'max_mana':mana,'skills':rng.sample(SKILLS,4),'moves':list(SPELLS[magic]) if kind=='Mage' else list(MOVES[path]),'passives':[path+' Training'],'inventory':['Travel Rations',{'Rogue':'Daggers','Mage':'Ashwood Staff','Fighter':'Iron Sword','Vessel':'Pilgrim Staff'}[kind]],'gold':rng.randint(7,30),'sprite_seed':rng.randrange(2**31)}
 
 def award_experience(hero,amount):
     """Award XP via verified game rules, never from LLM narration."""
