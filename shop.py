@@ -3,7 +3,9 @@ CATALOG={'Healing Draught':{'price':9,'description':'Restores 12 HP'},
          'Health Potion':{'price':7,'description':'Restores 8 HP'},
          'Travel Rations':{'price':3,'description':'Food for the road'},
          'Rope':{'price':5,'description':'Fifty feet of hemp rope'},
-         'Torch':{'price':2,'description':'A light for dark passages'}}
+         'Torch':{'price':2,'description':'A light for dark passages'},
+         'Leather Armor':{'price':13,'description':'Wearable protection'},
+         'Short Bow':{'price':11,'description':'A light ranged weapon'}}
 def buy(c,name):
     if not c.get('started'):raise ValueError('Start your adventure before shopping.')
     if c.get('enemy'):raise ValueError('You cannot shop during combat.')
