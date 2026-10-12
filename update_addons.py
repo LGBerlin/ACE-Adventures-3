@@ -54,7 +54,7 @@ def rollback(root):
     if prev is None:
         marker.unlink()
     else:
-        if not re.fullmatch(r'[0-9]+(?:\\.[0-9]+){1,3}(?:-[a-zA-Z0-9]+)?',prev):
+        if not re.fullmatch(r'[0-9]+(?:\.[0-9]+){1,3}(?:-[a-zA-Z0-9]+)?',prev):
             raise ValueError('Invalid previous version')
         previous_dir=marker.parent/'versions'/prev
         if not previous_dir.is_dir() or previous_dir.is_symlink():
