@@ -110,12 +110,18 @@ def action(c,text,rng=None):
     hero=c['characters'][c['active']];t=text.lower()
     if hero['hp']==0:raise ValueError('This character is incapacitated.')
     known=next((m for m in hero['moves'] if re.search(r'(?<!\w)'+re.escape(m.lower())+r'(?!\w)',t)),None)
+    # Never let typed names of future skills bypass level requirements.
     if hero.get('class')=='Mage' and hero.get('magic') in SPELLS:
         import spell_catalog
-        for entry in spell_catalog.catalog(hero['magic']):
-            if entry['level']>1 and re.search(r'(?<!\\w)'+re.escape(entry['name'].lower())+r'(?!\\w)',t):
-                if entry['name'] not in hero['moves']:
-                    raise ValueError('That spell is not unlocked at your level.')
+        future=spell_catalog.catalog(hero['magic'])
+    elif hero.get('class') in ('Fighter','Rogue','Vessel'):
+        import technique_catalog
+        future=technique_catalog.catalog(hero['path'])
+    else:
+        future=[]
+    for entry in future:
+        if entry['level']>hero['level'] and re.search(r'(?<!\\w)'+re.escape(entry['name'].lower())+r'(?!\\w)',t):
+            raise ValueError('That technique or spell is not unlocked at your level.')
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
     defensive=bool(c.get('enemy')) and (bool(known and any(w in known.lower() for w in ('guard','ward','dodge','escape','stance','parry','counter'))) or any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover')))
