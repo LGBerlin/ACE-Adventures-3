@@ -38,6 +38,17 @@ class ProgressionActionGateTests(unittest.TestCase):
       with self.assertRaisesRegex(ValueError,'not unlocked'):
        game.action(c,'I use '+entry['name'],random.Random(1))
       self.assertEqual(c['turn'],0)
+ def test_ordinary_guard_does_not_match_another_class_ability(self):
+  h=game.character('Aster',23,'Rogue',random.Random(4))
+  c=game.new_campaign('Guard action',1);game.add_hero(c,h);game.start(c)
+  game.encounter(c,random.Random(2))
+  result=game.action(c,'I guard against the enemy attack',random.Random(3))
+  self.assertIn('Guard stance',result['result'])
+ def test_cross_class_explicit_spells_rejected(self):
+  h=game.character('Aster',23,'Fighter',random.Random(4))
+  c=game.new_campaign('No borrowed magic',1);game.add_hero(c,h);game.start(c)
+  with self.assertRaisesRegex(ValueError,'not available'):
+   game.action(c,'I cast Healing Wave',random.Random(2))
  def test_newly_unlocked_technique_accepted(self):
   hero=game.character('F',20,'Fighter',random.Random(4));c=game.new_campaign('T',1);game.add_hero(c,hero);game.start(c)
   game.award_experience(hero,150)
