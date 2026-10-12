@@ -77,10 +77,10 @@ def action(c,text,rng=None):
     known=next((m for m in hero['moves'] if re.search(r'(?<!\w)'+re.escape(m.lower())+r'(?!\w)',t)),None)
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
-    defensive=bool(known and any(w in known.lower() for w in ('guard','ward','dodge','escape','stance','parry','counter')) )
+    defensive=bool(c.get('enemy')) and (bool(known and any(w in known.lower() for w in ('guard','ward','dodge','escape','stance','parry','counter'))) or any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover')))
     cost=3 if known and not defensive else 0
     if hero['mana']<cost:raise ValueError('Not enough mana.')
-    attack=bool(c['enemy']) and (bool(known and not defensive) or any(x in t for x in ['attack','shoot','stab','slash','strike','hit ','punch','kick']))
+    attack=bool(c['enemy']) and not defensive and (bool(known) or any(x in t for x in ['attack','shoot','stab','slash','strike','hit ','punch','kick']))
     social=any(x in t for x in ['persuad','convinc','negotia','bargain','talk to'])
     sneak=any(x in t for x in ['sneak','hide','escape','dodge'])
     stat='CHA' if social else 'INT' if hero['class']=='Mage' and known else 'DEX' if sneak or hero['class']=='Rogue' and attack else 'STR' if attack else 'WIS'
@@ -99,6 +99,12 @@ def action(c,text,rng=None):
             outcome.append('Enemy defeated, +10 XP, +8 gold.');hero['xp']+=10;hero['gold']+=8;c['enemy']=None
         else:
             dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
+    elif defensive:
+        incoming=rng.randint(1,4)
+        reduction=2 if total>=dc else 1
+        damage=max(0,incoming-reduction)
+        hero['hp']=max(0,hero['hp']-damage)
+        outcome.append(f'Guard stance reduces an incoming {incoming} damage to {damage}.')
     elif 'smoke' in t or 'cover' in t:
         if known and hero['magic']=='Fire' and any(x in t for x in ['leaves','grass','wood']) and total>=dc:
             c['smoke']=True;outcome.append('Flammable terrain catches, creating smoke cover.')
