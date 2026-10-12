@@ -384,10 +384,18 @@ class App(tk.Tk):
   import math
   kinds=loot_system.ENCHANT_TYPES
   cx,cy=165,115
+  labels=[]
   for i,name in enumerate(kinds):
    angle=(i*2*math.pi/len(kinds))-math.pi/2
    x,y=cx+85*math.cos(angle),cy+85*math.sin(angle)
-   cv.create_text(x,y,text=name,fill='#9a571a' if i==spin['slot'] else INK,font=('Georgia',11,'bold' if i==spin['slot'] else 'normal'))
+   labels.append(cv.create_text(x,y,text=name,fill=INK,font=('Georgia',11)))
+  def turn(step=0):
+   if not win.winfo_exists():return
+   selected=(spin['slot']+step+1)%len(kinds) if step<19 else spin['slot']
+   for j,label in enumerate(labels):
+    cv.itemconfigure(label,fill='#9a571a' if j==selected else INK,font=('Georgia',11,'bold' if j==selected else 'normal'))
+   if step<19:win.after(55+step*5,lambda:turn(step+1))
+  turn()
   cv.create_oval(cx-25,cy-25,cx+25,cy+25,fill=BRASS,outline=WOOD,width=3)
   cv.create_text(cx,cy,text=str(spin['level']),font=('Georgia',20,'bold'),fill=INK)
   self.label(inner,spin['item']+' · '+spin['outcome']+' enchantment',14,wraplength=370).pack(pady=5)
