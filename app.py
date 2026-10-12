@@ -359,8 +359,8 @@ class App(tk.Tk):
    return
   try:
    result=story.select(self.c,key);self.last_visual_cue=None;self.animation_director.clear();game.save(DATA,self.c)
-   if key in ('attack','guard','negotiate'):self._narrate(result)
    self._adventure()
+   self._narrate(result)
   except ValueError as e:messagebox.showwarning('Adventure',str(e))
  def _free(self,text):
   text=text.strip()
