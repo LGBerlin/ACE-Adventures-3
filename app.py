@@ -18,7 +18,9 @@ class App(tk.Tk):
    try:self.asset_pack.load(index)
    except (OSError,ValueError):pass
  def _portrait(self,canvas,hero):
-  """Static image only; never start a render loop in the story screen."""
+  """Use the same approved portrait in full-size and compact sidebar mode."""
+  width=int(canvas.cget('width'));height=int(canvas.cget('height'))
+  compact=height<130
   key=asset_registry.select_character_sprite(self.asset_pack,hero,'portrait')
   if key is None:key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
   source=self.asset_pack.bytes(key) if key else None
@@ -27,15 +29,16 @@ class App(tk.Tk):
     from PIL import Image,ImageTk
     with Image.open(BytesIO(source)) as img:
      img=img.convert('RGBA')
-     img.thumbnail((190,162))
+     img.thumbnail((min(190,width-18),height-18))
      photo=ImageTk.PhotoImage(img.copy(),master=canvas)
-    canvas.create_image(122,90,image=photo,anchor='center')
-    canvas.create_rectangle(8,8,237,173,outline=BRASS,width=2)
+    canvas.create_image(width//2,height//2,image=photo,anchor='center')
+    canvas.create_rectangle(6,6,width-6,height-6,outline=BRASS,width=2)
     canvas.image=photo
     return
    except (ImportError,OSError,ValueError,tk.TclError):pass
-  canvas.create_rectangle(8,8,237,173,outline=BRASS,width=2)
-  art.character(canvas,78,28,hero['class'],hero['sprite_seed'],4)
+  canvas.create_rectangle(6,6,width-6,height-6,outline=BRASS,width=2)
+  scale=2 if compact else 4
+  art.character(canvas,max(8,width//2-13*scale),max(3,height//2-16*scale),hero['class'],hero['sprite_seed'],scale)
  def _battle_character(self,canvas,hero,x,y,size):
   """Use approved body artwork in combat, preserving stable character identity."""
   key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
@@ -296,9 +299,12 @@ class App(tk.Tk):
   viewport.bind('<Button-5>',linux(1),add='+')
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,width=245,height=182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS);cv.pack(pady=8);self._portrait(cv,h)
-  self.label(f,h['name'],20).pack(padx=14)
-  self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+  compact=self.panel!='Record'
+  cv=tk.Canvas(f,width=245,height=82 if compact else 182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS)
+  cv.pack(pady=3 if compact else 8)
+  self._portrait(cv,h)
+  self.label(f,h['name'],15 if compact else 20).pack(padx=14)
+  self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),10 if compact else 12).pack(padx=14,pady=2 if compact else 5)
   self._resource_bar(f,'HEALTH',h['hp'],h['max_hp'],visual_theme.COLORS['forest'])
   self._resource_bar(f,'MANA',h['mana'],h['max_mana'],visual_theme.COLORS['mana'])
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
