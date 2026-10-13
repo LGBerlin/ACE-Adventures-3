@@ -5,7 +5,7 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects,tabletop_layout,pixel_controls
+import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
@@ -594,8 +594,12 @@ class App(tk.Tk):
   text=text.strip()
   if not text:return
   try:
+   command=command_router.route(text,self.c)
+   if command['kind']=='panel':
+    self._panel(command['panel'])
+    return
    had_enemy=bool(self.c.get('enemy'))
-   result=interaction.perform(self.c,text)
+   result=interaction.perform(self.c,command['text'])
    hero=self.c['characters'][self.c['active']]
    if result['roll_required']:
     visual=visual_mapping.cue_for(hero,result)
