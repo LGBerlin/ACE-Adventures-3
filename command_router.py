@@ -9,7 +9,7 @@ import re
 PANEL_ALIASES = {
     'Record': ('character sheet','character profile','my character','show stats','character stats'),
     'Pack': ('inventory','my bag','backpack','equipment','my items'),
-    'Abilities': ('abilities','my spells','spellbook','skills','skill tree'),
+    'Abilities': ('abilities','spells','my spells','spellbook','skills','skill tree'),
     'Shop': ('shop','merchant store','open shop'),
     'Town': ('town services','town menu'),
     'Map': ('world map','show map','open map'),
