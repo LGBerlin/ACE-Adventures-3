@@ -264,6 +264,8 @@ class App(tk.Tk):
   history.insert('1.0','\\n\\n'.join(lines))
   history.configure(state='disabled')
   history.see('end')
+  if self.panel=='Dice Board' or (self.c.get('enemy') and dice_ledger.history(self.c)):
+   self._dice_tray(f)
   if self.c.get('enemy'):
    foe=self.c['enemy']
    battle=tk.Frame(f,bg=WOOD,highlightbackground=BRASS,highlightthickness=2)
@@ -289,6 +291,24 @@ class App(tk.Tk):
     self.button(actions,'ABILITIES',lambda:self._panel('Abilities'),True).pack(side='left',padx=4)
     self.button(actions,'POTIONS',lambda:self._panel('Pack'),True).pack(side='left',padx=4)
 
+ def _dice_tray(self,parent):
+  """Visualize rules-engine dice ledger, never generate a roll on display."""
+  recent=dice_ledger.history(self.c)
+  tray=tk.Frame(parent,bg=visual_theme.COLORS['wood_dark'],highlightbackground=BRASS,highlightthickness=2)
+  tray.pack(fill='x',padx=14,pady=(5,3))
+  self.label(tray,'DICE TRAY  ·  RESULTS FROM GAME RULES',10,LIGHT,visual_theme.COLORS['wood_dark']).pack(anchor='w',padx=8,pady=(4,0))
+  display=tk.Canvas(tray,height=64,bg=visual_theme.COLORS['wood_dark'],highlightthickness=0)
+  display.pack(fill='x',padx=6,pady=(0,5))
+  w=340;cy=32
+  if recent:
+   row=recent[-1];v=int(row['roll']);modifier=int(row['modifier']);total=int(row['total'])
+   vertices=[(40,5),(64,22),(57,48),(23,48),(16,22)]
+   display.create_polygon(vertices,fill='#963e31',outline=visual_theme.COLORS['brass_light'],width=3)
+   display.create_text(40,29,text=str(v),fill=LIGHT,font=('Georgia',17,'bold'))
+   display.create_text(90,30,text=f'{modifier:+d}   =   {total}    (DC {row["dc"]})',anchor='w',fill=LIGHT,font=('Georgia',13,'bold'))
+  else:
+   display.create_text(15,30,text='Dice remain in the tray until an action requires a roll.',anchor='w',fill=LIGHT,font=('Georgia',11))
+  return tray
  def _resource_bar(self,parent,label,current,maximum,color):
   frame=tk.Frame(parent,bg=PARCH);frame.pack(fill='x',padx=15,pady=(2,3))
   self.label(frame,f'{label}  {current}/{maximum}',10).pack(anchor='w')
