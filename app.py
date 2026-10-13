@@ -77,9 +77,9 @@ class App(tk.Tk):
     from PIL import Image,ImageTk
     with Image.open(BytesIO(content)) as raw:
      frame=raw.convert('RGBA')
-     # Sheets store cells in the first frame; never display the entire atlas.
-     if frame.width>=64 and frame.height>=64 and (frame.width>128 or frame.height>128):
-      frame=frame.crop((0,0,64,64))
+     # Registry entries are individual sprites, never atlas sheets. Cropping
+     # the first 64x64 pixels destroys large character sprites and portraits.
+     # Preserve the whole alpha silhouette and scale proportionally.
      frame.thumbnail((max(48,78*size),max(48,82*size)),Image.Resampling.NEAREST)
      photo=ImageTk.PhotoImage(frame,master=canvas)
     canvas.create_image(x,y,image=photo,anchor='center')
