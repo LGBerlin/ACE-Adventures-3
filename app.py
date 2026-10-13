@@ -5,13 +5,13 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art,character_sheet_art,npc_art,battle_ui_art
+import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art,character_sheet_art,npc_art,battle_ui_art,overall_ui_art
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.character_sheet_art=character_sheet_art.CharacterSheetArt(DATA/'character sheet ui');self.npc_art=npc_art.NPCArt(DATA/'npc art');self.battle_ui_art=battle_ui_art.BattleUIArt(DATA/'battle ui');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.character_sheet_art=character_sheet_art.CharacterSheetArt(DATA/'character sheet ui');self.npc_art=npc_art.NPCArt(DATA/'npc art');self.battle_ui_art=battle_ui_art.BattleUIArt(DATA/'battle ui');self.overall_ui_art=overall_ui_art.OverallUIArt(DATA/'overall ui');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
  def _install_shortcuts(self):
   """Keyboard controls are installed once, outside page reconstruction."""
   for key in ui_shortcuts.PANELS:
@@ -328,6 +328,19 @@ class App(tk.Tk):
   cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
   self.label(f,story.journal(self.c),15,wraplength=650).pack(anchor='w',padx=18,pady=5)
   self.label(f,story.flavour(self.c,DATA),12,wraplength=650).pack(anchor='w',padx=18,pady=4)
+  # Keep the actual adventure log editable by code; use named sprite chrome only.
+  speaker_art=self.overall_ui_art.read('speaker_narrator')
+  if speaker_art:
+   try:
+    from PIL import Image,ImageTk
+    with Image.open(BytesIO(speaker_art)) as source:
+     picture=source.convert('RGBA')
+     picture.thumbnail((160,38),Image.Resampling.NEAREST)
+     photo=ImageTk.PhotoImage(picture,master=f)
+    label=tk.Label(f,image=photo,bg=PARCH)
+    label.image=photo
+    label.pack(anchor='w',padx=16,pady=(4,0))
+   except (OSError,ValueError,ImportError,tk.TclError):pass
   historybox=tk.Frame(f,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
   historybox.pack(fill='both',expand=not bool(self.c.get('enemy')),padx=14,pady=(6,6))
   history=tk.Text(historybox,font=('Georgia',12),bg=visual_theme.COLORS['parchment_light'],fg=INK,relief='flat',wrap='word',height=3 if self.c.get('enemy') else 7,padx=10,pady=8)
