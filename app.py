@@ -5,13 +5,37 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router
+import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
+ def _install_shortcuts(self):
+  """Keyboard controls are installed once, outside page reconstruction."""
+  for key in ui_shortcuts.PANELS:
+   for prefix in ('<Control-Key-', '<Command-Key-'):
+    self.bind_all(prefix+key+'>',lambda event,k=key:self._keyboard_panel(k))
+  for shortcut in ('<Control-s>','<Command-s>'):
+   self.bind_all(shortcut,self._keyboard_save)
+  self.bind_all('<Escape>',self._keyboard_focus_action)
+ def _keyboard_panel(self,key):
+  if not self.c or not self.c.get('started'):return None
+  panel=ui_shortcuts.panel_for_key(key,bool(self.c.get('enemy')))
+  if panel:self._panel(panel)
+  return 'break'
+ def _keyboard_save(self,event=None):
+  if self.c:
+   game.save(DATA,self.c)
+  return 'break'
+ def _keyboard_focus_action(self,event=None):
+  if self.c and self.c.get('started') and getattr(self,'_action_entry',None):
+   try:
+    if self._action_entry.winfo_exists():
+     self._action_entry.focus_set()
+   except tk.TclError:pass
+  return 'break'
  def _load_asset_index(self):
   """Load artwork from a bundled approved pack or the user's installed pack."""
   index=self.asset_pack.root/'manifest.json'
@@ -255,6 +279,7 @@ class App(tk.Tk):
   row.pack(side='bottom',fill='x',padx=13,pady=(0,12))
   entry=tk.Entry(row,font=('Georgia',14),bg='#fff0d3',fg=INK,insertbackground=INK,relief='solid',bd=2)
   entry.pack(side='left',fill='x',expand=True,padx=4,ipady=6)
+  self._action_entry=entry
   def submit():
    entered=entry.get().strip()
    if entered:self._free(entered)
