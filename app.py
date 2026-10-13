@@ -18,6 +18,33 @@ class App(tk.Tk):
   if index.is_file():
    try:self.asset_pack.load(index)
    except (OSError,ValueError):pass
+ def _pixel_asset(self,canvas,category,tags,width,height,x=None,y=None):
+  """Render a verified indexed PNG using crisp nearest-neighbor pixel scaling."""
+  try:
+   keys=self.asset_pack.choose(category,**tags)
+   if not keys:return False
+   from PIL import Image,ImageTk
+   for key in keys:
+    raw=self.asset_pack.bytes(key)
+    if raw is None:continue
+    with Image.open(BytesIO(raw)) as src:
+     image=src.convert('RGBA')
+     image.thumbnail((int(width),int(height)),Image.Resampling.NEAREST)
+     photo=ImageTk.PhotoImage(image,master=canvas)
+    canvas.create_image(x if x is not None else int(width)//2,
+                        y if y is not None else int(height)//2,image=photo)
+    canvas._ace_art_refs=getattr(canvas,'_ace_art_refs',[])+[photo]
+    return True
+  except (OSError,ValueError,ImportError,tk.TclError):pass
+  return False
+ def _item_art(self,parent,item):
+  """Small approved sprite icon beside shop and inventory rows."""
+  holder=tk.Canvas(parent,width=32,height=32,bg=PARCH,highlightthickness=0)
+  if not self._pixel_asset(holder,'icon',{'item':item.lower().replace(' ','_')},28,28,16,16):
+   holder.create_rectangle(4,4,28,28,outline=BRASS,width=2)
+   holder.create_text(16,16,text='✦',font=('Georgia',14,'bold'),fill=WOOD)
+  holder.pack(side='left',padx=(2,5))
+  return holder
  def _portrait(self,canvas,hero):
   """Use the same approved portrait in full-size and compact sidebar mode."""
   width=int(canvas.cget('width'));height=int(canvas.cget('height'))
@@ -144,7 +171,8 @@ class App(tk.Tk):
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');cv._ace_characters=[];w=max(10,cv.winfo_width());h=max(10,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  cv.delete('all');cv._ace_characters=[];cv._ace_art_refs=[];w=max(10,cv.winfo_width());h=max(10,cv.winfo_height());
+  if not self._pixel_asset(cv,'background',{'place':str(place).lower()},w,h,w//2,h//2):art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
    size=max(1,min(3,int(h/120)))
@@ -192,6 +220,9 @@ class App(tk.Tk):
                        highlightbackground=BRASS if selected else visual_theme.COLORS['parchment_shadow'],
                        highlightthickness=2 if selected else 1)
    hero_frame.grid(row=i//layout.party_columns,column=i%layout.party_columns,sticky='ew',padx=4,pady=2)
+   portrait=tk.Canvas(hero_frame,width=64,height=64,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS)
+   portrait.pack(side='left',padx=4,pady=4)
+   self._portrait(portrait,h)
    title=('◆ ' if selected else '◇ ')+h['name']+' · Lv '+str(h['level'])
    self.button(hero_frame,title,lambda i=i:self._switch(i),True).pack(fill='x',padx=3,pady=(3,0))
    self.label(hero_frame,game.display_archetype(h),10,bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=2)
@@ -335,6 +366,7 @@ class App(tk.Tk):
    for thing in h['inventory']:
     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
     status=' · EQUIPPED' if thing==equipment.equipped(h) or thing in h.get('gear_slots',{}).values() else ''
+    self._item_art(line,thing)
     self.label(line,'◇  '+thing+status,10,wraplength=175).pack(side='left')
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
@@ -378,12 +410,14 @@ class App(tk.Tk):
       self.label(txt,category,12).pack(anchor='w',pady=(9,4))
       last_category=category
      line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=3)
+     self._item_art(line,item)
      self.label(line,f"{item} · {detail['price']}g",10,wraplength=175).pack(side='left')
      self.button(line,'BUY',lambda item=item:self._trade('buy',item),True).pack(side='right')
     self.label(txt,'SELL FROM PACK',12).pack(anchor='w',pady=6)
     for item in sorted(set(h['inventory'])):
      if item not in merchant.CATALOG:continue
      line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+     self._item_art(line,item)
      self.label(line,item,10).pack(side='left')
      self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
   elif self.panel=='Town':
