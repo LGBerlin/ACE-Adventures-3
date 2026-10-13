@@ -7,7 +7,7 @@ executes actions. UI commands are explicit and cannot bypass active combat.
 import re
 
 PANEL_ALIASES = {
-    'Record': ('character sheet','character profile','my character','show stats','character stats'),
+    'Record': ('character sheet','character profile','my character','stats','character stats'),
     'Pack': ('inventory','my bag','backpack','equipment','my items'),
     'Abilities': ('abilities','spells','my spells','spellbook','skills','skill tree'),
     'Shop': ('shop','merchant store','open shop'),
