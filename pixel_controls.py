@@ -40,7 +40,7 @@ def skin(width, height, light=False, highlighted=False):
 
 class PixelButton(tk.Label):
     """Keyboard-accessible clickable picture button; compatible with pack/grid."""
-    def __init__(self,parent,text,command,light=False,artwork=None):
+    def __init__(self,parent,text,command,light=False,artwork=None,glyph=None):
         self._command=command
         self._light=bool(light)
         self._over=False
@@ -60,6 +60,16 @@ class PixelButton(tk.Label):
                         source=ImageEnhance.Brightness(source).enhance(1.20)
                 except (OSError,ValueError):
                     source=skin(width,height,self._light,highlighted)
+            if glyph:
+                try:
+                    from PIL import Image
+                    from io import BytesIO
+                    with Image.open(BytesIO(glyph)) as ico:
+                        ico=ico.convert('RGBA')
+                        ico.thumbnail((20,20),Image.Resampling.NEAREST)
+                        if source.mode!='RGBA':source=source.convert('RGBA')
+                        source.alpha_composite(ico,(7,(source.height-ico.height)//2))
+                except (OSError,ValueError):pass
             self._images[highlighted]=ImageTk.PhotoImage(source,master=parent)
         super().__init__(parent,text=text,image=self._images[False],
                          compound='center',font=('Georgia',11,'bold'),
