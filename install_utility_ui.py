@@ -19,7 +19,7 @@ def install(archive,destination=DEST):
    staged=Path(tmp)/'utility ui';staged.mkdir()
    for entry in entries:
     name=entry['file']
-    if not isinstance(name,str) or not re.fullmatch(r'[a-z0-9_]+\\.png',name):raise ValueError('Unsafe name')
+    if not isinstance(name,str) or not re.fullmatch(r'[a-z0-9_]+\.png',name):raise ValueError('Unsafe name')
     raw=z.read(prefix+name)
     if len(raw)>2_000_000 or hashlib.sha256(raw).hexdigest()!=entry['sha256']:raise ValueError('Checksum failure')
     with Image.open(BytesIO(raw)) as image:
