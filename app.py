@@ -11,9 +11,10 @@ DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];IN
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self._home();self._poll_job=self.after(400,self._poll)
  def _load_asset_index(self):
-  index=DATA/'approved sprites'/'manifest.json'
+  """Load artwork from a bundled approved pack or the user's installed pack."""
+  index=self.asset_pack.root/'manifest.json'
   if index.is_file():
    try:self.asset_pack.load(index)
    except (OSError,ValueError):pass
