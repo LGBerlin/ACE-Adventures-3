@@ -93,8 +93,15 @@ class App(tk.Tk):
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
   return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
  def button(self,parent,text,fn,light=False):
-  """Pixel-art wood/brass/parchment button, preserving gameplay callbacks."""
-  return pixel_controls.PixelButton(parent,text,fn,light)
+  """Use an approved image skin where available; callbacks remain real widgets."""
+  lookup={'ATTACK':'attack','MAGIC':'magic','BUY':'buy','SELL':'sell',
+          'EQUIP':'equip'}
+  asset=None
+  match=lookup.get(text.strip().upper())
+  if match:
+   keys=self.asset_pack.choose('icon',ui=match)
+   if keys:asset=self.asset_pack.bytes(keys[0])
+  return pixel_controls.PixelButton(parent,text,fn,light,artwork=asset)
 
  def page(self,title):
   self.clear();bar=tk.Frame(self,bg=visual_theme.COLORS['wood_dark'],height=72);bar.pack(fill='x')
