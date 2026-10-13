@@ -40,7 +40,7 @@ def skin(width, height, light=False, highlighted=False):
 
 class PixelButton(tk.Label):
     """Keyboard-accessible clickable picture button; compatible with pack/grid."""
-    def __init__(self,parent,text,command,light=False,artwork=None,glyph=None):
+    def __init__(self,parent,text,command,light=False,artwork=None,glyph=None,embedded_label=False):
         self._command=command
         self._light=bool(light)
         self._over=False
@@ -71,7 +71,7 @@ class PixelButton(tk.Label):
                         source.alpha_composite(ico,(7,(source.height-ico.height)//2))
                 except (OSError,ValueError):pass
             self._images[highlighted]=ImageTk.PhotoImage(source,master=parent)
-        super().__init__(parent,text=text,image=self._images[False],
+        super().__init__(parent,text='' if embedded_label and artwork else text,image=self._images[False],
                          compound='center',font=('Georgia',11,'bold'),
                          fg=INK if light else '#f7e2b8',
                          bg='#302019',bd=0,highlightthickness=0,
