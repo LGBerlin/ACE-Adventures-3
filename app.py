@@ -346,6 +346,17 @@ class App(tk.Tk):
    battle=tk.Frame(f,bg=WOOD,highlightbackground=BRASS,highlightthickness=2)
    battle.pack(fill='x',padx=14,pady=5,before=historybox)
    self.label(battle,'⚔  ENCOUNTER  ·  '+foe['name'].upper(),13,LIGHT,WOOD).pack(anchor='w',padx=10,pady=(7,2))
+   divider=self.battle_ui_art.decoration('divider_a')
+   if divider:
+    try:
+     from PIL import Image,ImageTk
+     with Image.open(BytesIO(divider)) as src:
+      pix=src.convert('RGBA');pix.thumbnail((320,22),Image.Resampling.NEAREST)
+      photo=ImageTk.PhotoImage(pix,master=battle)
+     art_label=tk.Label(battle,image=photo,bg=WOOD)
+     art_label.image=photo
+     art_label.pack(anchor='w',padx=10)
+    except (OSError,ValueError,ImportError,tk.TclError):pass
    phase=(' · PHASE '+str(foe.get('phase',1))) if foe.get('boss') else ''
    self.label(battle,'ENEMY HEALTH  '+str(foe['hp'])+'/'+str(foe.get('max_hp',foe['hp']))+phase,10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=2)
    meter_canvas=tk.Canvas(battle,width=320,height=14,bg=WOOD,highlightthickness=0)
