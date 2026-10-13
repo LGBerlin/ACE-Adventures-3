@@ -299,14 +299,16 @@ class App(tk.Tk):
   viewport.bind('<Button-5>',linux(1),add='+')
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
-  compact=self.panel!='Record'
-  cv=tk.Canvas(f,width=245,height=82 if compact else 182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS)
-  cv.pack(pady=3 if compact else 8)
-  self._portrait(cv,h)
-  self.label(f,h['name'],15 if compact else 20).pack(padx=14)
-  self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),10 if compact else 12).pack(padx=14,pady=2 if compact else 5)
-  self._resource_bar(f,'HEALTH',h['hp'],h['max_hp'],visual_theme.COLORS['forest'])
-  self._resource_bar(f,'MANA',h['mana'],h['max_mana'],visual_theme.COLORS['mana'])
+  if self.panel=='Record':
+   cv=tk.Canvas(f,width=245,height=182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS)
+   cv.pack(pady=8);self._portrait(cv,h)
+   self.label(f,h['name'],20).pack(padx=14)
+   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+   self._resource_bar(f,'HEALTH',h['hp'],h['max_hp'],visual_theme.COLORS['forest'])
+   self._resource_bar(f,'MANA',h['mana'],h['max_mana'],visual_theme.COLORS['mana'])
+  else:
+   self.label(f,h['name']+' · Lv '+str(h['level'])+' · '+game.display_archetype(h),12).pack(anchor='w',padx=14,pady=(5,2))
+   self.label(f,'HP '+str(h['hp'])+'/'+str(h['max_hp'])+'  ·  MP '+str(h['mana'])+'/'+str(h['max_mana']),10).pack(anchor='w',padx=14,pady=(0,4))
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for i,name in enumerate(visual_theme.NAVIGATION):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
