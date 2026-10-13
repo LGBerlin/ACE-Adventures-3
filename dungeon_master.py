@@ -92,14 +92,46 @@ def prompt_context(c,result):
     """Bounded context for the narrator; immutable facts come first."""
     import copy
     w=ensure_world(copy.deepcopy(c))
+    import town_services
+    local_people={name:{'role':data['role'],'familiarity':c.get('town_memory',{}).get(name,0)}
+                  for name,data in town_services.PEOPLE.items() if data['place']==c.get('location')}
+    import loot_system,ability_progression
     return {'campaign':c.get('title'), 'chapter':w['chapter'], 'location':c.get('location'),
+            'enemy':{key:value for key,value in (c.get('enemy') or {}).items() if key in ('name','hp','max_hp','ac','boss','phase','staggered','weakened')},
+            'guild_rank':town_services.guild_rank(c),
+            'guild_jobs_completed':c.get('guild_jobs_completed',0),
+            'townsfolk':local_people,
+            'last_dice':c.get('dice_history',[])[-3:],
+            'active_quests':town_services.quest_status(c),
+            'last_enchantment':c.get('last_enchant_spin'),
+            'last_loot':c.get('loot_history',[])[-3:],
             'quest':c.get('quest',{}), 'party':[
-              {'name':h['name'],'class':h['class'],'path':h['path'],'hp':h['hp'],'mana':h['mana']}
+              {'name':h['name'],'class':h['class'],'path':h['path'],'level':h.get('level',1),
+               'hp':h['hp'],'max_hp':h['max_hp'],'mana':h['mana'],'max_mana':h['max_mana'],
+               'known_abilities':h.get('moves',[])[-15:],
+               'ability_ranks':{move:ability_progression.rank(h,move) for move in h.get('moves',[])[-15:]},
+               'passives':h.get('passives',[])[-10:],
+               'equipment':h.get('gear_slots',{}), 'equipment_effects':loot_system.bonuses(h),
+               'enchants':h.get('enchant_types',{})}
               for h in c.get('characters',[])],
             'present_npcs':{k:{**v,'memories':w['npc_memory'].get(k,[])[-4:],'relationship':w['relationships'].get(k,0)}
                             for k,v in available_npcs(c).items()},
             'known_clues':w['clues'][-15:], 'history':c.get('history',[])[-8:],
             'authoritative_outcome':result}
+
+def _narration_conflicts(c,result,prose):
+    """Conservatively reject explicit fictional state changes."""
+    lower=prose.casefold()
+    actual=json.dumps(result,ensure_ascii=False).casefold()
+    quest=c.get('quest') or {}
+    if not quest.get('completed') and re.search(r'\b(?:the |your )?quest (?:is |has been )?complet(?:e|ed)\b',lower):
+        return True
+    if c.get('enemy') and re.search(r'\b(?:enemy|guardian|monster|boss) (?:is |has been )?(?:defeated|slain|killed)\b',lower):
+        return True
+    for match in re.finditer(r'\b(?:gain|gains|earn|earns|receive|receives|obtain|obtains|awarded)\s+(\d{1,9})\s+gold\b',lower):
+        if match.group(1)+' gold' not in actual:
+            return True
+    return False
 
 def narrate(c,result,model=MODEL,timeout=45,request=None):
     """Narrate only. Callers must never apply LLM prose as authoritative state."""
@@ -117,4 +149,6 @@ def narrate(c,result,model=MODEL,timeout=45,request=None):
         with urllib.request.urlopen(req,timeout=timeout) as resp:reply=json.load(resp)
     prose=str(reply.get('message',{}).get('content','')).strip()
     if not prose:raise ValueError('Model returned no narration.')
+    if _narration_conflicts(c,result,prose):
+        return str(result.get('result',result) if isinstance(result,dict) else result)[:1100]
     return prose[:2200]

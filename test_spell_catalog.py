@@ -8,13 +8,13 @@ class SpellCatalogTests(unittest.TestCase):
  def test_each_school_has_level_three_and_five_progression(self):
   for school in game.SPELLS:
    values=spell_catalog.catalog(school)
-   self.assertEqual(len(values),5)
-   self.assertEqual([s['level'] for s in values],[1,1,1,3,5])
-   self.assertEqual(len(set(s['name'] for s in values)),5)
+   self.assertEqual(len(values),9)
+   self.assertEqual([s['level'] for s in values],[1,1,1,5,12,20,35,60,85])
+   self.assertEqual(len(set(s['name'] for s in values)),9)
  def test_unlocks_are_level_gated(self):
   self.assertEqual(len(spell_catalog.unlocked('Blood',1)),3)
-  self.assertEqual(len(spell_catalog.unlocked('Blood',3)),4)
-  self.assertEqual(len(spell_catalog.unlocked('Blood',5)),5)
+  self.assertEqual(len(spell_catalog.unlocked('Blood',5)),4)
+  self.assertEqual(len(spell_catalog.unlocked('Blood',20)),6)
  def test_wrong_magic_rejected(self):
   with self.assertRaises(ValueError):spell_catalog.catalog('Not a school')
  def test_cleric_support_is_mage(self):

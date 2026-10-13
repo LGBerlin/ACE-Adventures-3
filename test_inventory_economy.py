@@ -25,6 +25,18 @@ class InventoryEconomyTests(unittest.TestCase):
   h['hp']=h['max_hp']-5
   with self.assertRaises(ValueError):game.use_item(c,'Healing Draught')
   self.assertEqual(h['hp'],h['max_hp']-5)
+ def test_combat_potion_provokes_retaliation(self):
+  c=self.c;h=c['characters'][0]
+  h['inventory'].append('Healing Draught')
+  h['hp']=h['max_hp']-10
+  c['enemy']={'name':'Wolf','hp':12,'ac':12}
+  class FixedRng:
+   def randint(self,a,b):return 4
+  before=c['turn']
+  msg=game.use_item(c,'Healing Draught',rng=FixedRng())
+  self.assertEqual(h['hp'],h['max_hp']-4)
+  self.assertEqual(c['turn'],before+1)
+  self.assertIn('retaliates for 4 HP',msg)
  def test_one_character_inventory_independent(self):
   c=self.c;a,b=c['characters'];a['hp']-=5;b['hp']-=5;a['inventory'].append('Healing Draught')
   c['active']=1

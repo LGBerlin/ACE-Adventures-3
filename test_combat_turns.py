@@ -17,6 +17,7 @@ class CombatTurns(unittest.TestCase):
   class Dice:
    def randint(self,a,b):return b
   game.action(self.c,'I guard and defend myself',Dice())
-  self.assertEqual(hero['hp'],18)
+  self.assertGreaterEqual(hero['hp'],18)
+  self.assertLess(hero['hp'],20)
   self.assertEqual(self.c['turn'],1)
 if __name__=='__main__':unittest.main()

@@ -2,59 +2,160 @@
 import json,queue,threading,tkinter as tk
 from tkinter import messagebox
 from pathlib import Path
-import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction
+import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
+import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
+import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art,character_sheet_art,npc_art,battle_ui_art,overall_ui_art
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
-DARK='#241e1b';PARCH='#ecd9b0';INK='#3d2b22';BRASS='#b99152';WOOD='#513322';LIGHT='#f8e8c8'
+DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.asset_pack=asset_registry.Registry(DATA/'approved sprites',max_cache_bytes=16*1024*1024);self._load_asset_index();self._home();self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.character_sheet_art=character_sheet_art.CharacterSheetArt(DATA/'character sheet ui');self.npc_art=npc_art.NPCArt(DATA/'npc art');self.battle_ui_art=battle_ui_art.BattleUIArt(DATA/'battle ui');self.overall_ui_art=overall_ui_art.OverallUIArt(DATA/'overall ui');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
+ def _install_shortcuts(self):
+  """Keyboard controls are installed once, outside page reconstruction."""
+  for key in ui_shortcuts.PANELS:
+   for prefix in ('<Control-Key-', '<Command-Key-'):
+    self.bind_all(prefix+key+'>',lambda event,k=key:self._keyboard_panel(k))
+  for shortcut in ('<Control-s>','<Command-s>'):
+   self.bind_all(shortcut,self._keyboard_save)
+  self.bind_all('<Escape>',self._keyboard_focus_action)
+ def _keyboard_panel(self,key):
+  if not self.c or not self.c.get('started'):return None
+  panel=ui_shortcuts.panel_for_key(key,bool(self.c.get('enemy')))
+  if panel:self._panel(panel)
+  return 'break'
+ def _keyboard_save(self,event=None):
+  if self.c:
+   game.save(DATA,self.c)
+  return 'break'
+ def _keyboard_focus_action(self,event=None):
+  if self.c and self.c.get('started') and getattr(self,'_action_entry',None):
+   try:
+    if self._action_entry.winfo_exists():
+     self._action_entry.focus_set()
+   except tk.TclError:pass
+  return 'break'
  def _load_asset_index(self):
-  index=DATA/'approved sprites'/'manifest.json'
+  """Load artwork from a bundled approved pack or the user's installed pack."""
+  index=self.asset_pack.root/'manifest.json'
   if index.is_file():
    try:self.asset_pack.load(index)
    except (OSError,ValueError):pass
+ def _pixel_asset(self,canvas,category,tags,width,height,x=None,y=None):
+  """Render a verified indexed PNG using crisp nearest-neighbor pixel scaling."""
+  try:
+   keys=self.asset_pack.choose(category,**tags)
+   if not keys:return False
+   from PIL import Image,ImageTk
+   for key in keys:
+    raw=self.asset_pack.bytes(key)
+    if raw is None:continue
+    with Image.open(BytesIO(raw)) as src:
+     image=src.convert('RGBA')
+     image.thumbnail((int(width),int(height)),Image.Resampling.NEAREST)
+     photo=ImageTk.PhotoImage(image,master=canvas)
+    canvas.create_image(x if x is not None else int(width)//2,
+                        y if y is not None else int(height)//2,image=photo)
+    canvas._ace_art_refs=getattr(canvas,'_ace_art_refs',[])+[photo]
+    return True
+  except (OSError,ValueError,ImportError,tk.TclError):pass
+  return False
+ def _item_art(self,parent,item):
+  """Small approved sprite icon beside shop and inventory rows."""
+  holder=tk.Canvas(parent,width=32,height=32,bg=PARCH,highlightthickness=0)
+  if not self._pixel_asset(holder,'icon',{'item':item.lower().replace(' ','_')},28,28,16,16):
+   holder.create_rectangle(4,4,28,28,outline=BRASS,width=2)
+   holder.create_text(16,16,text='✦',font=('Georgia',14,'bold'),fill=WOOD)
+  holder.pack(side='left',padx=(2,5))
+  return holder
  def _portrait(self,canvas,hero):
-  """Static image only; never start a render loop in the story screen."""
+  """Use the same approved portrait in full-size and compact sidebar mode."""
+  width=int(canvas.cget('width'));height=int(canvas.cget('height'))
+  compact=height<130
   key=asset_registry.select_character_sprite(self.asset_pack,hero,'portrait')
   if key is None:key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
   source=self.asset_pack.bytes(key) if key else None
+  if not source:source=self.fighter_art.bytes(hero,'portrait') or self.rogue_art.bytes(hero,'portrait') or self.vessel_art.bytes(hero,'portrait') or self.mage_art.bytes(hero,'portrait')
   if source:
    try:
     from PIL import Image,ImageTk
     with Image.open(BytesIO(source)) as img:
-     img.thumbnail((168,168))
+     img=img.convert('RGBA')
+     img.thumbnail((min(190,width-18),height-18),Image.Resampling.NEAREST)
      photo=ImageTk.PhotoImage(img.copy(),master=canvas)
-    canvas.create_image(122,90,image=photo)
+    canvas.create_image(width//2,height//2,image=photo,anchor='center')
+    canvas.create_rectangle(6,6,width-6,height-6,outline=BRASS,width=2)
     canvas.image=photo
     return
    except (ImportError,OSError,ValueError,tk.TclError):pass
-  art.character(canvas,78,28,hero['class'],hero['sprite_seed'],4)
+  canvas.create_rectangle(6,6,width-6,height-6,outline=BRASS,width=2)
+  scale=1 if compact else max(2,min(4,height//110))
+  art.character(canvas,max(2,(width-32*scale)//2),max(2,(height-33*scale)//2),hero['class'],hero['sprite_seed'],scale)
+ def _battle_character(self,canvas,hero,x,y,size):
+  """Use approved body artwork in combat, preserving stable character identity."""
+  key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
+  if key is None:key=asset_registry.select_character_sprite(self.asset_pack,hero,'idle')
+  content=self.asset_pack.bytes(key) if key else None
+  if not content:content=self.fighter_art.bytes(hero,'character') or self.rogue_art.bytes(hero,'sprite') or self.vessel_art.bytes(hero,'character') or self.mage_art.bytes(hero,'character')
+  if content:
+   try:
+    from PIL import Image,ImageTk
+    with Image.open(BytesIO(content)) as raw:
+     frame=raw.convert('RGBA')
+     # Registry entries are individual sprites, never atlas sheets. Cropping
+     # the first 64x64 pixels destroys large character sprites and portraits.
+     # Preserve the whole alpha silhouette and scale proportionally.
+     frame.thumbnail((max(48,78*size),max(48,82*size)),Image.Resampling.NEAREST)
+     photo=ImageTk.PhotoImage(frame,master=canvas)
+    canvas.create_image(x,y,image=photo,anchor='center')
+    canvas._ace_characters=getattr(canvas,'_ace_characters',[])+[photo]
+    return True
+   except (ImportError,OSError,ValueError,tk.TclError):pass
+  art.character(canvas,x-14*size,y-14*size,hero['class'],hero['sprite_seed'],size)
+  return False
  def clear(self):
   for widget in self.winfo_children():widget.destroy()
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
   return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
  def button(self,parent,text,fn,light=False):
-  """Paint consistent high-contrast controls; macOS native buttons ignore bg."""
-  bg='#f3e0b9' if light else '#553824'
-  fg='#31251b' if light else '#fff1cf'
-  control=tk.Label(parent,text=text,font=('Georgia',11,'bold'),bg=bg,fg=fg,
-                   relief='raised',bd=2,highlightthickness=1,highlightbackground=BRASS,
-                   padx=11,pady=8,cursor='hand2',takefocus=True)
-  control.bind('<ButtonRelease-1>',lambda event:fn() if control.winfo_containing(event.x_root,event.y_root)==control else None)
-  control.bind('<Return>',lambda event:fn())
-  control.bind('<space>',lambda event:fn())
-  return control
+  """Use an approved image skin where available; callbacks remain real widgets."""
+  lookup={'ATTACK':'attack','MAGIC':'magic','BUY':'buy','SELL':'sell',
+          'EQUIP':'equip'}
+  asset=None
+  match=lookup.get(text.strip().upper())
+  if match:
+   keys=self.asset_pack.choose('icon',ui=match)
+   if keys:asset=self.asset_pack.bytes(keys[0])
+  label=text.strip().casefold()
+  alias={'save':'save','save campaign':'save','load':'load','settings':'settings',
+         'journal':'journal','ai connections':'settings',
+         'check updates':'refresh','check for content updates':'refresh',
+         'the chronicles':'journal','character sheet':'stats',
+         'party':'players','close':'close','help':'help'}
+  glyph=self.ui_icons.get(alias.get(label,'')) if hasattr(self,'ui_icons') else None
+  # Battle action art is selected by a fixed allowed label, never by the DM.
+  # Other buttons retain their existing skin and readable live text.
+  if self.c and self.c.get('enemy'):
+   battle_action={'ATTACK':'attack','GUARD':'defend','MAGIC':'magic','SKILLS':'skills',
+                  'ITEM':'item','MOVE':'move','END TURN':'end_turn'}.get(text.strip().upper())
+   if battle_action:
+    battle_png=self.battle_ui_art.button(battle_action)
+    if battle_png:
+     return pixel_controls.PixelButton(parent,text,fn,light,artwork=battle_png,embedded_label=True)
+  return pixel_controls.PixelButton(parent,text,fn,light,artwork=asset,glyph=glyph)
+
  def page(self,title):
-  self.clear();bar=tk.Frame(self,bg='#33261e',height=72);bar.pack(fill='x')
-  self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,'#33261e').pack(side='left',padx=20,pady=12)
-  self.label(bar,'❦  '+title.upper(),11,BRASS,'#33261e').pack(side='left',padx=14)
+  self.clear();bar=tk.Frame(self,bg=visual_theme.COLORS['wood_dark'],height=72);bar.pack(fill='x')
+  self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,visual_theme.COLORS['wood_dark']).pack(side='left',padx=20,pady=12)
+  self.label(bar,'❦  '+title.upper(),11,BRASS,visual_theme.COLORS['wood_dark']).pack(side='left',padx=14)
   self.button(bar,'THE CHRONICLES',self._home).pack(side='right',padx=12)
   self.button(bar,'AI CONNECTIONS',self._connections).pack(side='right',padx=5)
   self.button(bar,'CHECK UPDATES',self._check_content_updates).pack(side='right',padx=5)
  def card(self,parent,title=''):
-  outer=tk.Frame(parent,bg=WOOD,bd=4,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=2);inner.pack(fill='both',expand=True,padx=4,pady=4)
+  outer=tk.Frame(parent,bg=visual_theme.COLORS['wood_dark'],bd=4,relief='flat',highlightbackground=BRASS,highlightthickness=2)
+  inner=tk.Frame(outer,bg=PARCH,highlightbackground=visual_theme.COLORS['wood_highlight'],highlightthickness=4)
+  inner.pack(fill='both',expand=True,padx=5,pady=5)
   if title:
    self.label(inner,'❧   '+title.upper()+'   ❧',14,fg='#78512f').pack(anchor='w',padx=16,pady=(14,7))
    tk.Frame(inner,bg=BRASS,height=2).pack(fill='x',padx=16,pady=(0,5))
@@ -76,6 +177,7 @@ class App(tk.Tk):
    self.q.put(('services',(popup,status,result)))
   threading.Thread(target=worker,daemon=True).start()
  def _home(self):
+  self.pending_narration=None
   self.last_visual_cue=None;self.animation_director.clear();self.c=None;self.page('The Book of Unwritten Roads')
   body=tk.Frame(self,bg=DARK);body.pack(expand=True,fill='both',padx=18,pady=15)
   left,inside=self.card(body,'Campaign Library');left.pack(side='left',fill='y',padx=(0,12))
@@ -120,18 +222,47 @@ class App(tk.Tk):
  def _start(self):game.start(self.c);story.ensure(self.c);game.save(DATA,self.c);self._adventure()
  def _scene(self,cv,place):
   if not cv.winfo_exists():return
-  cv.delete('all');w=max(650,cv.winfo_width());h=max(270,cv.winfo_height());art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
+  cv.delete('all');cv._ace_characters=[];cv._ace_art_refs=[];w=max(10,cv.winfo_width());h=max(10,cv.winfo_height());
+  if not self._pixel_asset(cv,'background',{'place':str(place).lower()},w,h,w//2,h//2):art.world(cv,place,self.c is not None and bool(self.c.get('enemy')),w,h)
   if self.c and self.c.get('enemy') and self.c.get('characters'):
    hero=self.c['characters'][self.c['active']]
-   art.character(cv,round(w*.19),round(h*.47),hero['class'],hero['sprite_seed'],2)
+   size=max(1,min(3,int(h/120)))
+   cv.create_oval(round(w*.08),round(h*.78),round(w*.34),round(h*.84),fill='#403c35',outline='#c5a16e',width=2)
+   self._battle_character(cv,hero,round(w*.21),round(h*.55),size)
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
-   # Placeholder opponent remains visible until approved animation pack is installed.
-   art.character(cv,round(w*.7),round(h*.47),'Rogue',self.c['world_seed'],2)
-   cv.create_text(round(w*.76),round(h*.9),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
+   cv.create_oval(round(w*.67),round(h*.79),round(w*.91),round(h*.85),fill='#403c35',outline='#c5a16e',width=2)
+   if not self._pixel_asset(cv,'body',{'enemy':str(enemy['name']).lower().replace(' ','_')},min(180,int(w*.32)),min(180,int(h*.65)),round(w*.78),round(h*.55)):
+    art.enemy(cv,round(w*.78),round(h*.55),enemy['name'],self.c['world_seed'],size)
+   cv.create_text(round(w*.75),round(h*.92),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',12,'bold'))
    if self.last_visual_cue:
+    effect=self.last_visual_cue.effect
+    if effect:
+     point_x,point_y=round(w*.52),round(h*.49)
+     effect_size=min(220,max(90,int(h*.50)))
+     if not (self.battle_effects.paint(cv,effect,point_x,point_y,size=effect_size) or self.magic_effects.paint(cv,effect,point_x,point_y,size=effect_size)):
+      battle_effects.paint(cv,effect,round(w*.52),round(h*.49),getattr(self,'last_visual_tier',1))
+    elif self.last_visual_cue.action=='guard':
+     cv.create_oval(round(w*.12),round(h*.22),round(w*.32),round(h*.8),outline='#9ad1c2',width=4)
+    elif self.last_visual_cue.action=='attack':
+     cv.create_line(round(w*.30),round(h*.58),round(w*.68),round(h*.58),fill='#f0ce83',width=4,dash=(7,7))
     cv.create_text(round(w*.5),25,text=self.last_visual_cue.action.upper()+' · '+(self.last_visual_cue.effect or 'NO IMPACT'),fill='#ffda91',font=('Georgia',12,'bold'))
  def _switch(self,i):self.last_visual_cue=None;self.animation_director.clear();self.c['active']=i;game.save(DATA,self.c);self._adventure()
+ def _npc_portrait(self,parent,role):
+  """Display a verified NPC portrait with no gameplay state modification."""
+  raw=self.npc_art.bytes(role,'portrait')
+  if not raw:return False
+  try:
+   from PIL import Image,ImageTk
+   with Image.open(BytesIO(raw)) as img:
+    img=img.convert('RGBA')
+    img.thumbnail((92,110),Image.Resampling.NEAREST)
+    photo=ImageTk.PhotoImage(img,master=parent)
+   label=tk.Label(parent,image=photo,bg=PARCH)
+   label.image=photo
+   label.pack(pady=3)
+   return True
+  except (OSError,ValueError,ImportError,tk.TclError):return False
  def _adventure(self):
   self.page('The Hollow Bell')
   if not self.c['started']:
@@ -139,31 +270,80 @@ class App(tk.Tk):
    for hero in self.c['characters']:self.label(inside,hero['name']+' · '+hero['class']+' · '+hero['path'],16).pack(padx=18,pady=10)
    self.button(inside,'BEGIN THE ADVENTURE',self._start).pack(pady=25)
    return
+  layout=tabletop_layout.for_window(self.winfo_width(),self.winfo_height(),len(self.c['characters']),in_battle=bool(self.c.get('enemy')))
   body=tk.Frame(self,bg=DARK)
   body.pack(fill='both',expand=True,padx=14,pady=10)
-  right=tk.Frame(body,bg=DARK,width=330)
+  right=tk.Frame(body,bg=DARK,width=layout.sidebar)
   right.pack(side='right',fill='y',padx=(9,0))
   right.pack_propagate(False)
   self._sidebar(right)
+  # Match the original concept's permanent left-hand party roster.
+  party_column=tk.Frame(body,bg=DARK,width=195)
+  party_column.pack(side='left',fill='y',padx=(0,8))
+  party_column.pack_propagate(False)
   left=tk.Frame(body,bg=DARK)
   left.pack(side='left',fill='both',expand=True)
-  party,party_inside=self.card(left,'Your party')
-  party.pack(fill='x',pady=(0,7))
+  party,party_inside=self.card(party_column,'Your party')
+  party.pack(fill='both',expand=True,pady=(0,7))
   members=tk.Frame(party_inside,bg=PARCH)
-  members.pack(fill='x',padx=12,pady=7)
+  members.pack(fill='both',expand=True,padx=3,pady=6)
+  members.grid_columnconfigure(0,weight=1)
   for i,h in enumerate(self.c['characters']):
-   line=('%s  ·  %s  ·  HP %s/%s'%(h['name'],game.display_archetype(h),h['hp'],h['max_hp']))
-   self.button(members,('◆ ' if i==self.c['active'] else '')+line,lambda i=i:self._switch(i),True).pack(side='left',padx=3,pady=3)
+   selected=i==self.c['active']
+   hero_frame=tk.Frame(members,bg=visual_theme.COLORS['parchment_light'] if selected else PARCH,
+                       highlightbackground=BRASS if selected else visual_theme.COLORS['parchment_shadow'],
+                       highlightthickness=2 if selected else 1)
+   hero_frame.grid(row=i,column=0,sticky='ew',padx=1,pady=3)
+   portrait=tk.Canvas(hero_frame,width=56,height=56,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS)
+   portrait.pack(side='left',padx=2,pady=3)
+   self._portrait(portrait,h)
+   title=('◆ ' if selected else '◇ ')+h['name']+' · Lv '+str(h['level'])
+   self.button(hero_frame,title,lambda i=i:self._switch(i),True).pack(fill='x',padx=1,pady=(3,0))
+   self.label(hero_frame,game.display_archetype(h),9,bg=hero_frame['bg']).pack(anchor='w',padx=4,pady=1)
+   self.label(hero_frame,'HP '+str(h['hp'])+'/'+str(h['max_hp'])+' · MP '+str(h['mana'])+'/'+str(h['max_mana']),9,bg=hero_frame['bg']).pack(anchor='w',padx=4,pady=(0,1))
+   bars=tk.Canvas(hero_frame,height=9,width=175,bg=hero_frame['bg'],highlightthickness=0)
+   bars.pack(fill='x',padx=8,pady=(0,4))
+   bar_width=140
+   visual_theme.meter(bars,h['hp'],h['max_hp'],width=bar_width,height=8,fill=visual_theme.COLORS['forest'] if h['hp']>0 else visual_theme.COLORS['danger'])
+   if h['hp']<=0:self.label(hero_frame,'INCAPACITATED',9,fg=visual_theme.COLORS['danger'],bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=(0,3))
   outer,f=self.card(left,story.PLACES[self.c['location']][0])
   outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,height=225,bg=DARK,highlightthickness=0)
+  if self.busy:
+   self.label(f,'The Dungeon Master is preparing the next passage...',11).pack(side='bottom',anchor='w',padx=16,pady=3)
+  self.label(f,'WHAT DO YOU DO?',13).pack(side='bottom',anchor='w',padx=16,pady=(0,3))
+  row=tk.Frame(f,bg=PARCH)
+  row.pack(side='bottom',fill='x',padx=13,pady=(0,12))
+  entry=tk.Entry(row,font=('Georgia',14),bg='#fff0d3',fg=INK,insertbackground=INK,relief='solid',bd=2)
+  entry.pack(side='left',fill='x',expand=True,padx=4,ipady=6)
+  self._action_entry=entry
+  def submit():
+   entered=entry.get().strip()
+   if entered:self._free(entered)
+  entry.bind('<Return>',lambda event:submit())
+  self.button(row,'SEND ACTION',submit,True).pack(side='right',padx=4)
+  entry.focus_set()
+  self.label(f,tabletop_layout.scene_caption(story.PLACES[self.c['location']][0],self.c.get('enemy')),11,fg=visual_theme.COLORS['muted_ink']).pack(anchor='w',padx=18,pady=(4,0))
+  cv=tk.Canvas(f,height=layout.scene_height,bg=DARK,highlightthickness=0)
   cv.pack(fill='x',padx=12,pady=8)
   cv.bind('<Configure>',lambda e:self._scene(cv,self.c['location']))
   self.label(f,story.journal(self.c),15,wraplength=650).pack(anchor='w',padx=18,pady=5)
   self.label(f,story.flavour(self.c,DATA),12,wraplength=650).pack(anchor='w',padx=18,pady=4)
-  historybox=tk.Frame(f,bg='#f7e7c6',highlightbackground=BRASS,highlightthickness=1)
-  historybox.pack(fill='both',expand=True,padx=14,pady=(6,9))
-  history=tk.Text(historybox,font=('Georgia',12),bg='#f7e7c6',fg=INK,relief='flat',wrap='word',height=7,padx=10,pady=8)
+  # Keep the actual adventure log editable by code; use named sprite chrome only.
+  speaker_art=self.overall_ui_art.read('speaker_narrator')
+  if speaker_art:
+   try:
+    from PIL import Image,ImageTk
+    with Image.open(BytesIO(speaker_art)) as source:
+     picture=source.convert('RGBA')
+     picture.thumbnail((160,38),Image.Resampling.NEAREST)
+     photo=ImageTk.PhotoImage(picture,master=f)
+    label=tk.Label(f,image=photo,bg=PARCH)
+    label.image=photo
+    label.pack(anchor='w',padx=16,pady=(4,0))
+   except (OSError,ValueError,ImportError,tk.TclError):pass
+  historybox=tk.Frame(f,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
+  historybox.pack(fill='both',expand=not bool(self.c.get('enemy')),padx=14,pady=(6,6))
+  history=tk.Text(historybox,font=('Georgia',12),bg=visual_theme.COLORS['parchment_light'],fg=INK,relief='flat',wrap='word',height=3 if self.c.get('enemy') else 7,padx=10,pady=8)
   history.pack(side='left',fill='both',expand=True)
   scroll=tk.Scrollbar(historybox,command=history.yview)
   scroll.pack(side='right',fill='y')
@@ -172,42 +352,173 @@ class App(tk.Tk):
   history.insert('1.0','\\n\\n'.join(lines))
   history.configure(state='disabled')
   history.see('end')
-  self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
-  row=tk.Frame(f,bg=PARCH)
-  row.pack(fill='x',padx=13,pady=(0,12))
-  entry=tk.Entry(row,font=('Georgia',14),bg='#fff0d3',fg=INK,insertbackground=INK,relief='solid',bd=2)
-  entry.pack(side='left',fill='x',expand=True,padx=4,ipady=6)
-  def submit():
-   entered=entry.get().strip()
-   if entered:self._free(entered)
-  entry.bind('<Return>',lambda event:submit())
-  self.button(row,'SEND ACTION',submit,True).pack(side='right',padx=4)
-  entry.focus_set()
+  if self.panel=='Dice Board' or (self.c.get('enemy') and dice_ledger.history(self.c)):
+   self._dice_tray(f)
+  if self.c.get('enemy'):
+   foe=self.c['enemy']
+   battle=tk.Frame(f,bg=WOOD,highlightbackground=BRASS,highlightthickness=2)
+   battle.pack(fill='x',padx=14,pady=5,before=historybox)
+   self.label(battle,'⚔  ENCOUNTER  ·  '+foe['name'].upper(),13,LIGHT,WOOD).pack(anchor='w',padx=10,pady=(7,2))
+   divider=self.battle_ui_art.decoration('divider_a')
+   if divider:
+    try:
+     from PIL import Image,ImageTk
+     with Image.open(BytesIO(divider)) as src:
+      pix=src.convert('RGBA');pix.thumbnail((320,22),Image.Resampling.NEAREST)
+      photo=ImageTk.PhotoImage(pix,master=battle)
+     art_label=tk.Label(battle,image=photo,bg=WOOD)
+     art_label.image=photo
+     art_label.pack(anchor='w',padx=10)
+    except (OSError,ValueError,ImportError,tk.TclError):pass
+   phase=(' · PHASE '+str(foe.get('phase',1))) if foe.get('boss') else ''
+   self.label(battle,'ENEMY HEALTH  '+str(foe['hp'])+'/'+str(foe.get('max_hp',foe['hp']))+phase,10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=2)
+   meter_canvas=tk.Canvas(battle,width=320,height=14,bg=WOOD,highlightthickness=0)
+   meter_canvas.pack(anchor='w',padx=10,pady=(0,5))
+   visual_theme.meter(meter_canvas,foe['hp'],foe.get('max_hp',foe['hp']),width=320,fill=visual_theme.COLORS['danger'])
+   hero=self.c['characters'][self.c['active']]
+   self.label(battle,'ACTIVE HERO  ·  '+hero['name']+'  ·  HP '+str(hero['hp'])+'/'+str(hero['max_hp'])+'  ·  MP '+str(hero['mana'])+'/'+str(hero['max_mana']),10,LIGHT,WOOD).pack(anchor='w',padx=10,pady=3)
+   recent=dice_ledger.history(self.c)
+   if recent:
+    last=recent[-1]
+    self.label(battle,'LAST ROLL   D20 '+str(last['roll'])+'  '+f"{last['modifier']:+d}"+' = '+str(last['total'])+' / DC '+str(last['dc']),10,visual_theme.COLORS['brass_light'],WOOD).pack(anchor='w',padx=10,pady=3)
+   actions=tk.Frame(battle,bg=WOOD);actions.pack(fill='x',padx=8,pady=(5,8))
+   if self.c.get('party_defeated'):
+    self.button(actions,'RECOVER IN TOWN',lambda:self._free('recover party'),True).pack(side='left',padx=4)
+   else:
+    for caption,command in [('ATTACK','I attack the enemy'),('GUARD','I guard'),('NEGOTIATE','I negotiate')]:
+     self.button(actions,caption,lambda command=command:self._free(command),True).pack(side='left',padx=4)
+    self.button(actions,'ABILITIES',lambda:self._panel('Abilities'),True).pack(side='left',padx=4)
+    self.button(actions,'POTIONS',lambda:self._panel('Pack'),True).pack(side='left',padx=4)
+
+ def _dice_tray(self,parent):
+  """Visualize rules-engine dice ledger, never generate a roll on display."""
+  recent=dice_ledger.history(self.c)
+  tray=tk.Frame(parent,bg=visual_theme.COLORS['wood_dark'],highlightbackground=BRASS,highlightthickness=2)
+  tray.pack(fill='x',padx=14,pady=(5,3))
+  self.label(tray,'DICE TRAY  ·  RESULTS FROM GAME RULES',10,LIGHT,visual_theme.COLORS['wood_dark']).pack(anchor='w',padx=8,pady=(4,0))
+  display=tk.Canvas(tray,height=64,bg=visual_theme.COLORS['wood_dark'],highlightthickness=0)
+  display.pack(fill='x',padx=6,pady=(0,5))
+  w=340;cy=32
+  if recent:
+   row=recent[-1];v=int(row['roll']);modifier=int(row['modifier']);total=int(row['total'])
+   vertices=[(40,5),(64,22),(57,48),(23,48),(16,22)]
+   display.create_polygon(vertices,fill='#963e31',outline=visual_theme.COLORS['brass_light'],width=3)
+   display.create_text(40,29,text=str(v),fill=LIGHT,font=('Georgia',17,'bold'))
+   display.create_text(90,30,text=f'{modifier:+d}   =   {total}    (DC {row["dc"]})',anchor='w',fill=LIGHT,font=('Georgia',13,'bold'))
+  else:
+   display.create_text(15,30,text='Dice remain in the tray until an action requires a roll.',anchor='w',fill=LIGHT,font=('Georgia',11))
+  return tray
+ def _resource_bar(self,parent,label,current,maximum,color):
+  frame=tk.Frame(parent,bg=PARCH);frame.pack(fill='x',padx=15,pady=(2,3))
+  self.label(frame,f'{label}  {current}/{maximum}',10).pack(anchor='w')
+  cv=tk.Canvas(frame,width=245,height=14,bg=PARCH,highlightthickness=0)
+  cv.pack(anchor='w',fill='x',pady=(2,1))
+  visual_theme.meter(cv,current,maximum,width=245,height=12,fill=color)
+  return cv
+ def _bind_ledger_scroll(self,viewport,root):
+  """Scroll long sidebars with the wheel or trackpad without scrolling the whole UI."""
+  def move(event):
+   amount=-1 if event.delta>0 else 1 if event.delta<0 else 0
+   if amount:viewport.yview_scroll(amount,'units')
+   return 'break'
+  def linux(direction):
+   def fn(event):
+    viewport.yview_scroll(direction,'units')
+    return 'break'
+   return fn
+  def walk(widget):
+   widget.bind('<MouseWheel>',move,add='+')
+   widget.bind('<Button-4>',linux(-1),add='+')
+   widget.bind('<Button-5>',linux(1),add='+')
+   for child in widget.winfo_children():walk(child)
+  walk(root)
+  viewport.bind('<MouseWheel>',move,add='+')
+  viewport.bind('<Button-4>',linux(-1),add='+')
+  viewport.bind('<Button-5>',linux(1),add='+')
  def _sidebar(self,parent):
   h=self.c['characters'][self.c['active']];outer,f=self.card(parent,'Adventurer’s Record');outer.pack(fill='both',expand=True)
-  cv=tk.Canvas(f,width=245,height=182,bg='#9a9179',highlightthickness=0);cv.pack(pady=8);self._portrait(cv,h)
-  self.label(f,h['name'],20).pack(padx=14)
-  self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
-  self.label(f,f'HEALTH  {h["hp"]}/{h["max_hp"]}      MANA  {h["mana"]}/{h["max_mana"]}',11).pack(padx=14,pady=6)
+  if self.panel=='Record':
+   cv=tk.Canvas(f,width=245,height=182,bg=visual_theme.COLORS['parchment_shadow'],highlightthickness=1,highlightbackground=BRASS)
+   cv.pack(pady=8);self._portrait(cv,h)
+   self.label(f,h['name'],20).pack(padx=14)
+   self.label(f,h['class']+' · '+game.display_archetype(h)+' · Level '+str(h['level']),12).pack(padx=14,pady=5)
+   self._resource_bar(f,'HEALTH',h['hp'],h['max_hp'],visual_theme.COLORS['forest'])
+   self._resource_bar(f,'MANA',h['mana'],h['max_mana'],visual_theme.COLORS['mana'])
+  else:
+   self.label(f,h['name']+' · Lv '+str(h['level'])+' · '+game.display_archetype(h),12).pack(anchor='w',padx=14,pady=(5,2))
+   self.label(f,'HEALTH '+str(h['hp'])+'/'+str(h['max_hp'])+' · MANA '+str(h['mana'])+'/'+str(h['max_mana']),10).pack(anchor='w',padx=14,pady=(0,4))
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
-  for i,name in enumerate(['Character Sheet','Inventory','Abilities','Journal','Story Tree']):
+  for i,name in enumerate(visual_theme.NAVIGATION):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
-   self.button(row,name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
+   nav=self.button(row,('◆ ' if self.panel==panel else '')+name,lambda x=panel:self._panel(x),True)
+   nav.configure(padx=5,pady=4,font=('Georgia',9,'bold'))
+   nav.grid(row=i//2,column=i%2,padx=2,pady=2,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
   row.grid_columnconfigure(1,weight=1)
-  txt=tk.Frame(f,bg=PARCH);txt.pack(fill='both',expand=True,padx=16,pady=8)
+  ledger=tk.Frame(f,bg=PARCH)
+  ledger.pack(fill='both',expand=True,padx=(10,4),pady=(4,8))
+  viewport=tk.Canvas(ledger,bg=PARCH,highlightthickness=0,width=280,height=250)
+  scrollbar=tk.Scrollbar(ledger,orient='vertical',command=viewport.yview)
+  scrollbar.pack(side='right',fill='y')
+  viewport.pack(side='left',fill='both',expand=True)
+  viewport.configure(yscrollcommand=scrollbar.set)
+  txt=tk.Frame(viewport,bg=PARCH)
+  window_id=viewport.create_window((0,0),window=txt,anchor='nw')
+  txt.bind('<Configure>',lambda event:viewport.configure(scrollregion=viewport.bbox('all')))
+  viewport.bind('<Configure>',lambda event:viewport.itemconfigure(window_id,width=event.width))
+  if self.panel in ('Record','Pack','Abilities'):
+   tab_png=self.character_sheet_art.tab(self.panel)
+   if tab_png:
+    try:
+     from PIL import Image,ImageTk
+     with Image.open(BytesIO(tab_png)) as source:
+      tab_img=source.convert('RGBA')
+      tab_img.thumbnail((180,52),Image.Resampling.NEAREST)
+      tab_photo=ImageTk.PhotoImage(tab_img,master=txt)
+     tab_label=tk.Label(txt,image=tab_photo,bg=PARCH)
+     tab_label.image=tab_photo
+     tab_label.pack(anchor='w',pady=(0,7))
+    except (OSError,ValueError,ImportError,tk.TclError):pass
   if self.panel=='Record':
-   for k,v in h['stats'].items():self.label(txt,f'{k}      {v:>2}     ({(v-10)//2:+d})',13).pack(anchor='w',pady=2)
-   self.label(txt,'Magic: '+h['magic'],12).pack(anchor='w',pady=6)
+   self.label(txt,'CHARACTER PROFILE',13).pack(anchor='w',pady=(0,8))
+   self.label(txt,'Path  ·  '+h['path'],11).pack(anchor='w',pady=3)
+   self.label(txt,'Magic ·  '+h['magic'],11).pack(anchor='w',pady=3)
+   self.label(txt,'Level '+str(h['level'])+'  ·  XP '+str(h['xp']),11).pack(anchor='w',pady=3)
+   self.label(txt,'ATTRIBUTES',13).pack(anchor='w',pady=(12,6))
+   for k,v in h['stats'].items():
+    self.label(txt,f'{k}       {v:>2}    ({(v-10)//2:+d})',12).pack(anchor='w',pady=3)
+   self.label(txt,'EQUIPMENT',13).pack(anchor='w',pady=(12,6))
+   weapon=equipment.equipped(h) or h.get('gear_slots',{}).get('weapon') or 'Unarmed'
+   self.label(txt,'Weapon · '+weapon,11,wraplength=260).pack(anchor='w',pady=2)
+   for slot in ('armor','trinket'):
+    self.label(txt,slot.title()+' · '+h.get('gear_slots',{}).get(slot,'None'),11,wraplength=260).pack(anchor='w',pady=2)
   elif self.panel=='Pack':
+   self.label(txt,'ADVENTURER’S PACK',13).pack(anchor='w',pady=(0,5))
+   self.label(txt,'Gold · '+str(h['gold']),12).pack(anchor='w',pady=(0,8))
    for thing in h['inventory']:
     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
-    self.label(line,'◇  '+thing,12).pack(side='left')
+    status=' · EQUIPPED' if thing==equipment.equipped(h) or thing in h.get('gear_slots',{}).values() else ''
+    self._item_art(line,thing)
+    self.label(line,'◇  '+thing+status,10,wraplength=175).pack(side='left')
     if thing in ('Health Potion','Healing Draught'):
      self.button(line,'USE',lambda item=thing:self._consume(item),True).pack(side='right')
-   self.label(txt,f'Gold: {h["gold"]}',14).pack(anchor='w',pady=9)
+    elif thing in training_scrolls.SCROLLS:
+     self.button(line,'STUDY',lambda item=thing:self._free('study '+item),True).pack(side='right')
+    elif thing in loot_system.ITEMS:
+     self.button(line,'EQUIP',lambda item=thing:self._free('equip '+item),True).pack(side='right')
+    elif thing in equipment.WEAPONS:
+     suffix=' (equipped)' if equipment.equipped(h)==thing else ''
+     if suffix:self.label(line,suffix,10).pack(side='left')
+     self.button(line,'EQUIP',lambda item=thing:self._equip(item),True).pack(side='right')
+   self.label(txt,'Items · '+str(len(h['inventory'])),11).pack(anchor='w',pady=9)
   elif self.panel=='Abilities':
-   for thing in h['moves']+h['passives']:self.label(txt,'◆  '+thing,12).pack(anchor='w',pady=5)
+   self.label(txt,'AVAILABLE ACTIONS',12).pack(anchor='w',pady=4)
+   for thing in h['moves']:
+    ability_row=tk.Frame(txt,bg=PARCH);ability_row.pack(fill='x',pady=2)
+    self.label(ability_row,'◆  '+ability_progression.display_name(h,thing),11).pack(side='left')
+    self.button(ability_row,'USE',lambda move=thing:self._free('I use '+move),True).pack(side='right')
+   for passive in h['passives']:
+    self.label(txt,'◇  '+passive+' (passive)',10).pack(anchor='w',pady=2)
    if h['class']=='Mage' and h.get('magic') in spell_catalog.MAGIC_TYPES:
     unlocked=set(spell_catalog.unlocked(h['magic'],h['level']))
     for entry in spell_catalog.catalog(h['magic']):
@@ -219,42 +530,236 @@ class App(tk.Tk):
     for entry in technique_catalog.catalog(h['path']):
      label=('✦  ' if entry['name'] in unlocked else '◇  ')+entry['name']+'  ·  Level '+str(entry['level'])
      self.label(txt,label,11).pack(anchor='w',pady=2)
-  elif self.panel=='Story Tree':self.label(txt,story_tree.journal_text(self.c),12,wraplength=270).pack(anchor='w',pady=3)
+  elif self.panel=='Shop':
+   if not merchant.available(self.c):
+    self.label(txt,"Visit Yarrow's Apothecary to trade. No trading during combat.",12,wraplength=260).pack(anchor='w',pady=8)
+   else:
+    self._npc_portrait(txt,'apothecary')
+    self.label(txt,f"PURSE · {h['gold']} gold",14).pack(anchor='w',pady=6)
+    last_category=None
+    for item,detail in merchant.CATALOG.items():
+     category=loot_system.ITEMS[item]['kind'].upper() if item in loot_system.ITEMS else 'SUPPLIES & SCROLLS'
+     if category!=last_category:
+      self.label(txt,category,12).pack(anchor='w',pady=(9,4))
+      last_category=category
+     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=3)
+     self._item_art(line,item)
+     self.label(line,f"{item} · {detail['price']}g",10,wraplength=175).pack(side='left')
+     self.button(line,'BUY',lambda item=item:self._trade('buy',item),True).pack(side='right')
+    self.label(txt,'SELL FROM PACK',12).pack(anchor='w',pady=6)
+    for item in sorted(set(h['inventory'])):
+     if item not in merchant.CATALOG:continue
+     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+     self._item_art(line,item)
+     self.label(line,item,10).pack(side='left')
+     self.button(line,'SELL',lambda item=item:self._trade('sell',item),True).pack(side='right')
+  elif self.panel=='Town':
+   quests=town_services.quest_status(self.c)
+   self.label(txt,'ACTIVE QUESTS '+str(len(quests))+'/2',13).pack(anchor='w',pady=4)
+   for quest in quests:
+    self.label(txt,'◇ '+quest['name'],10).pack(anchor='w',pady=2)
+    if quest.get('objective'):
+     self.label(txt,'   ↳ '+quest['objective'],10).pack(anchor='w',pady=1)
+   if self.c.get('last_enchant_spin'):
+    spin=self.c['last_enchant_spin']
+    self.label(txt,'LAST ENCHANT WHEEL: '+spin['outcome']+' +'+str(spin['level']),10).pack(anchor='w',pady=4)
+   self.label(txt,'LOCAL PEOPLE',13).pack(anchor='w',pady=4)
+   present=[name for name,info in town_services.PEOPLE.items() if info['place']==self.c['location']]
+   for name in present:
+    line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+    role={'Oren':'merchant','Yarrow':'apothecary','Enchanter Elira':'mage',
+          'Mira':'innkeeper','Captain Rowan':'guard',
+          'Elder Sera':'priest','Tomas':'scholar','Nella':'herbalist'}.get(name)
+    if role:
+     png=self.npc_art.bytes(role,'portrait')
+     if png:
+      try:
+       from PIL import Image,ImageTk
+       with Image.open(BytesIO(png)) as picture:
+        picture=picture.convert('RGBA')
+        picture.thumbnail((35,42),Image.Resampling.NEAREST)
+        sprite=ImageTk.PhotoImage(picture,master=line)
+       avatar=tk.Label(line,image=sprite,bg=PARCH)
+       avatar.image=sprite
+       avatar.pack(side='left',padx=(0,5))
+      except (OSError,ValueError,ImportError,tk.TclError):pass
+    self.label(line,name,10).pack(side='left')
+    self.button(line,'TALK',lambda who=name:self._free('talk to '+who),True).pack(side='right')
+   if self.c['location']=='square':
+    self.label(txt,'ADVENTURERS GUILD · '+town_services.guild_rank(self.c),12).pack(anchor='w',pady=7)
+    for name in town_services.available_jobs(self.c):
+     self.button(txt,name,lambda job=name:self._free('accept guild job '+job),True).pack(fill='x',pady=2)
+   if self.c.get('guild_job'):
+    self.button(txt,'ABANDON GUILD JOB',lambda:self._free('abandon guild job'),True).pack(fill='x',pady=3)
+    self.button(txt,'CLAIM GUILD REWARD',lambda:self._free('claim guild reward'),True).pack(fill='x',pady=5)
+   if self.c['location']=='market':
+    self.label(txt,'ENCHANT EQUIPMENT',12).pack(anchor='w',pady=5)
+    for thing in sorted(set(h['inventory'])):
+     if thing in loot_system.ITEMS:
+      self.button(txt,'ENCHANT '+thing,lambda item=thing:self._free('enchant '+item),True).pack(fill='x',pady=2)
+  elif self.panel=='Map':
+   self.label(txt,'PARCHMENT ATLAS',13).pack(anchor='w',pady=(0,5))
+   self._minimap(txt)
+  elif self.panel=='Dice Board':
+   records=dice_ledger.history(self.c)
+   self.label(txt,'THE FATES · D20 LEDGER',13).pack(anchor='w',pady=(2,8))
+   self.label(txt,'Only uncertain actions require a die roll.',10,wraplength=260).pack(anchor='w',pady=(0,7))
+   if not records:self.label(txt,'No dice rolled yet.',11).pack(anchor='w',pady=7)
+   for record in reversed(records[-20:]):
+    line=tk.Frame(txt,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
+    line.pack(fill='x',pady=3)
+    self.label(line,'D20  '+str(record['roll'])+'  '+f"{record['modifier']:+d}"+'  = '+str(record['total']),12,bg=visual_theme.COLORS['parchment_light']).pack(anchor='w',padx=8,pady=(5,0))
+    self.label(line,'DC '+str(record['dc'])+'  ·  '+str(record.get('degree','')),10,bg=visual_theme.COLORS['parchment_light'],wraplength=245).pack(anchor='w',padx=8,pady=(0,5))
+  elif self.panel=='Story Tree':
+   self.label(txt,'THE HOLLOW BELL · CHRONICLE',13).pack(anchor='w',pady=(2,8))
+   for i,step in enumerate(story_tree.timeline(self.c)):
+    row=tk.Frame(txt,bg=visual_theme.COLORS['parchment_light'],highlightbackground=BRASS,highlightthickness=1)
+    row.pack(fill='x',pady=3)
+    marker='✓' if step['status']=='completed' else '◉' if step['status']=='current' else '◇'
+    color=visual_theme.COLORS['forest'] if step['status']=='completed' else INK if step['status']=='current' else visual_theme.COLORS['muted_ink']
+    self.label(row,marker+'  '+step['title'],10,fg=color,bg=visual_theme.COLORS['parchment_light'],wraplength=220).pack(anchor='w',padx=8,pady=7)
+    if i<len(story_tree.STEPS)-1:
+     self.label(txt,'    │',10,fg=BRASS).pack(anchor='w')
+  elif self.panel=='Journal':
+   self.label(txt,'CHRONICLE · QUEST JOURNAL',13).pack(anchor='w',pady=(2,7))
+   self.label(txt,story.journal(self.c),12,wraplength=250).pack(anchor='w',pady=3)
+   self.label(txt,'RECENT EVENTS',12).pack(anchor='w',pady=(13,6))
+   for event in reversed(self.c.get('history',[])[-16:]):
+    row=tk.Frame(txt,bg=visual_theme.COLORS['parchment_light'],highlightbackground=visual_theme.COLORS['parchment_shadow'],highlightthickness=1)
+    row.pack(fill='x',pady=3)
+    self.label(row,str(event)[:220],10,bg=visual_theme.COLORS['parchment_light'],wraplength=245).pack(anchor='w',padx=8,pady=5)
   else:self.label(txt,story.journal(self.c),13,wraplength=270).pack(anchor='w')
- def _consume(self,item):
+  self._bind_ledger_scroll(viewport,txt)
+ def _minimap(self,parent):
+  """Parchment cartography; destination clicks remain rules-gated."""
+  state=atlas.state(self.c)
+  canvas=tk.Canvas(parent,width=274,height=215,bg=visual_theme.COLORS['parchment_light'],
+                   highlightbackground=BRASS,highlightthickness=2)
+  canvas.pack(pady=9)
+  canvas.create_rectangle(8,8,262,205,outline=BRASS,width=2)
+  canvas.create_text(137,20,text='BRIARHOLLOW & ASHWOOD',font=('Georgia',10,'bold'),fill=INK)
+  canvas.create_line(236,39,236,67,fill=visual_theme.COLORS['wood'],width=2)
+  canvas.create_polygon(236,34,229,45,243,45,fill=visual_theme.COLORS['wood'])
+  canvas.create_text(236,75,text='N',font=('Georgia',9,'bold'),fill=INK)
+  coords={'square':(131,172),'tavern':(61,124),'market':(214,125),
+          'well':(128,95),'forest':(158,51)}
+  nodes={node['id']:node for node in state['nodes']}
+  for a,b in state['roads']:
+   xa,ya=coords[a];xb,yb=coords[b]
+   canvas.create_line(xa,ya,xb,yb,fill='#b3996b',width=5)
+   canvas.create_line(xa,ya,xb,yb,fill='#f4e5c4',width=2,dash=(5,4))
+  for node in state['nodes']:
+   key=node['id'];x,y=coords[key]
+   color=(visual_theme.COLORS['forest'] if node['current']
+          else visual_theme.COLORS['wood'] if node['reachable']
+          else '#a8a096')
+   tag='place_'+key
+   radius=10 if node['current'] else 8
+   canvas.create_oval(x-radius,y-radius,x+radius,y+radius,fill=color,
+                      outline=BRASS,width=2,tags=(tag,))
+   canvas.create_text(x,y-20 if key=='forest' else y+20,
+                      text={'square':'VILLAGE SQUARE','tavern':'TAVERN','market':'APOTHECARY',
+                            'well':'OLD WELL','forest':'ASHWOOD'}[key],
+                      font=('Georgia',8,'bold'),fill=INK,tags=(tag,))
+   if node['reachable']:
+    canvas.tag_bind(tag,'<ButtonRelease-1>',lambda event,dest=key:self._map_travel(dest))
+  self.label(parent,'Green: current place · Brown: available road',10,wraplength=260).pack(anchor='w')
+  self.label(parent,'Select a marked destination to travel.',10,wraplength=260).pack(anchor='w',pady=(3,0))
+ def _map_travel(self,destination):
   try:
-   game.use_item(self.c,item)
+   result=atlas.travel(self.c,destination)
    game.save(DATA,self.c)
    self._adventure()
+   self._narrate(result)
+  except ValueError as exc:messagebox.showwarning('Map',str(exc))
+ def _trade(self,operation,item):
+  try:
+   if operation=='buy':result=merchant.buy(self.c,item)
+   elif operation=='sell':result=merchant.sell(self.c,item)
+   else:raise ValueError('Unknown trade action.')
+   game.save(DATA,self.c)
+   self._adventure()
+   self._narrate(result)
+  except ValueError as exc:messagebox.showwarning("Yarrow's Apothecary",str(exc))
+ def _equip(self,item):
+  try:
+   result=equipment.equip(self.c,item)
+   game.save(DATA,self.c)
+   self._adventure()
+   self._narrate(result)
+  except ValueError as e:messagebox.showwarning('Equipment',str(e))
+ def _consume(self,item):
+  try:
+   result=game.use_item(self.c,item)
+   game.save(DATA,self.c)
+   self._adventure()
+   self._narrate(result)
   except ValueError as e:messagebox.showwarning('Inventory',str(e))
  def _panel(self,name):self.panel=name;self._adventure()
  def _choose(self,key):
+  if key in ('attack','guard','negotiate'):
+   self._free({'attack':'I attack the enemy','guard':'I guard','negotiate':'I negotiate'}[key])
+   return
   try:
    result=story.select(self.c,key);self.last_visual_cue=None;self.animation_director.clear();game.save(DATA,self.c)
-   if key in ('attack','guard','negotiate'):self._narrate(result)
    self._adventure()
+   self._narrate(result)
   except ValueError as e:messagebox.showwarning('Adventure',str(e))
  def _free(self,text):
   text=text.strip()
   if not text:return
   try:
+   command=command_router.route(text,self.c)
+   if command['kind']=='panel':
+    self._panel(command['panel'])
+    return
    had_enemy=bool(self.c.get('enemy'))
+   text=command['text']
    result=interaction.perform(self.c,text)
    hero=self.c['characters'][self.c['active']]
    if result['roll_required']:
     visual=visual_mapping.cue_for(hero,result)
+    self.last_visual_tier=visual.get('tier',1)
     self.last_visual_cue=self.animation_director.enqueue(str(hero['id']),visual['animation'],visual['effect'] or '')
    else:
     self.last_visual_cue=None
     self.animation_director.clear()
    game.save(DATA,self.c)
-   if had_enemy and self.c.get('enemy') is None and story.ensure(self.c)['stage']==3:
-    story.ensure(self.c)['stage']=4;self.c['location']='square';game.save(DATA,self.c)
    if self.c.get('enemy') is None:self.last_visual_cue=None;self.animation_director.clear()
    self._adventure()
+   if result.get('choice')=='enchant':self._enchant_wheel()
    if result['roll_required']:self._roll_display(result)
    self._narrate(result['result'])
   except ValueError as e:messagebox.showwarning('Action',str(e))
+ def _enchant_wheel(self):
+  spin=self.c.get('last_enchant_spin')
+  if not spin:return
+  win=tk.Toplevel(self);win.title('Enchantment Wheel');win.geometry('450x380');win.configure(bg=WOOD)
+  outer,inner=self.card(win,'Wheel of Enchantments');outer.pack(fill='both',expand=True,padx=12,pady=12)
+  cv=tk.Canvas(inner,width=330,height=250,bg=PARCH,highlightthickness=0);cv.pack()
+  import math
+  kinds=loot_system.ENCHANT_TYPES
+  cx,cy=165,115
+  cv.create_oval(cx-104,cy-104,cx+104,cy+104,fill=visual_theme.COLORS['parchment_light'],outline=BRASS,width=5)
+  cv.create_oval(cx-94,cy-94,cx+94,cy+94,outline=WOOD,width=2)
+  labels=[]
+  for i,name in enumerate(kinds):
+   angle=(i*2*math.pi/len(kinds))-math.pi/2
+   x,y=cx+80*math.cos(angle),cy+80*math.sin(angle)
+   cv.create_line(cx+45*math.cos(angle),cy+45*math.sin(angle),cx+98*math.cos(angle),cy+98*math.sin(angle),fill=BRASS,width=2)
+   labels.append(cv.create_text(x,y,text=name,fill=INK,font=('Georgia',10,'bold')))
+  def turn(step=0):
+   if not win.winfo_exists():return
+   selected=(spin['slot']+step+1)%len(kinds) if step<19 else spin['slot']
+   for j,label in enumerate(labels):
+    cv.itemconfigure(label,fill='#a65b30' if j==selected else INK,font=('Georgia',10,'bold' if j==selected else 'normal'))
+   if step<19:win.after(55+step*5,lambda:turn(step+1))
+  turn()
+  cv.create_oval(cx-26,cy-26,cx+26,cy+26,fill=BRASS,outline=WOOD,width=3)
+  cv.create_text(cx,cy,text='+'+str(spin['level']),font=('Georgia',18,'bold'),fill=INK)
+  cv.create_polygon(cx-7,cy-109,cx+7,cy-109,cx,cy-96,fill='#a65b30',outline=WOOD,width=2)
+  self.label(inner,spin['item']+' · '+spin['outcome']+' enchantment',14,wraplength=370).pack(pady=5)
+  self.button(inner,'CONTINUE',win.destroy,True).pack(pady=8)
  def _roll_display(self,result):
   win=tk.Toplevel(self);win.title('The Fates Decide');win.geometry('400x350');win.configure(bg=WOOD)
   outer,f=self.card(win,'The Twenty-Sided Die');outer.pack(fill='both',expand=True,padx=16,pady=14)
@@ -270,7 +775,11 @@ class App(tk.Tk):
   self.label(f,f'{result["roll"]} {result["modifier"]:+d} = {result["total"]}   ·   DC {result["dc"]}',13).pack(pady=5)
   self.button(f,'CONTINUE',win.destroy).pack(pady=10)
  def _narrate(self,resolved):
-  if self.busy:return
+  if not self.c:return
+  if self.busy:
+   # Keep the newest request; never block the player or spawn many AI jobs.
+   self.pending_narration=(self.c['id'],resolved)
+   return
   self.busy=True;identity=self.c['id'];snapshot=json.loads(json.dumps(self.c))
   def worker():
    try:message=ai.narrate(snapshot,resolved)
@@ -312,6 +821,7 @@ class App(tk.Tk):
    self.q.put(('updates',result))
   threading.Thread(target=worker,daemon=True).start()
  def _poll(self):
+  if self._closed:return
   try:
    while True:
     kind,value=self.q.get_nowait()
@@ -343,7 +853,18 @@ class App(tk.Tk):
      self.busy=False
      if self.c and self.c['id']==value[0]:
       self.c['history'].append('Dungeon Master: '+value[1]);game.save(DATA,self.c);self._adventure()
+     pending=self.pending_narration
+     self.pending_narration=None
+     if pending and self.c and pending[0]==self.c['id']:
+      self._narrate(pending[1])
   except queue.Empty:pass
-  self.after(400,self._poll)
+  if not self._closed:self._poll_job=self.after(400,self._poll)
+ def destroy(self):
+  self._closed=True
+  if self._poll_job is not None:
+   try:self.after_cancel(self._poll_job)
+   except tk.TclError:pass
+   self._poll_job=None
+  super().destroy()
  def _exit(self):game.save(DATA,self.c);self._home()
 if __name__=='__main__':App().mainloop()

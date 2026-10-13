@@ -35,15 +35,25 @@ def award_experience(hero,amount):
     """Award XP via verified game rules, never from LLM narration."""
     if not isinstance(amount,int) or isinstance(amount,bool) or amount<0 or amount>10000:
         raise ValueError('Invalid experience award')
+    if hero['level']>=100:return []
     hero['xp']+=amount
     changes=[]
-    while hero['level']<5 and hero['xp']>=50*hero['level']:
-        hero['xp']-=50*hero['level']
+    while hero['level']<100 and hero['xp']>=70*hero['level']+12*hero['level']**2:
+        hero['xp']-=70*hero['level']+12*hero['level']**2
         hero['level']+=1
         hero['max_hp']+=3
         hero['hp']=min(hero['max_hp'],hero['hp']+3)
         hero['max_mana']+=3
         hero['mana']=min(hero['max_mana'],hero['mana']+3)
+        if hero['level']%10==0:
+            stat={'Fighter':'STR','Rogue':'DEX','Mage':'INT','Vessel':'WIS'}[hero['class']]
+            hero['stats'][stat]=min(30,hero['stats'][stat]+1)
+            changes.append(stat+' increased')
+        if hero['level'] in (8,16,28,40,55,70,85,100):
+            passive=hero['path']+' Mastery '+str(hero['level'])
+            if passive not in hero['passives']:
+                hero['passives'].append(passive)
+                changes.append(passive)
         if hero['class']=='Mage' and hero.get('magic') in SPELLS:
             import spell_catalog
             for name in spell_catalog.unlocked(hero['magic'],hero['level']):
@@ -56,6 +66,7 @@ def award_experience(hero,amount):
                 if name not in hero['moves']:
                     hero['moves'].append(name)
                     changes.append(name)
+    if hero['level']==100:hero['xp']=0
     return changes
 
 def new_campaign(title,players):
@@ -79,9 +90,58 @@ def encounter(c,rng=None):
     rng=rng or random.Random()
     if c['enemy']:return
     c['enemy']={'name':rng.choice(['Moss Goblin','Thorn Wolf','Forest Wisp']),'hp':15,'max_hp':15,'ac':12,'pos':[5,2]}
+    if c.get('quest',{}).get('stage')==3:
+        c['enemy']={'name':'Hollow Guardian','hp':30,'max_hp':30,'ac':14,'boss':True,'pos':[5,2]}
     c['history'].append('An enemy blocks the forest road. Battle begins!')
+    import combat_log
+    combat_log.append(c,actor=c['enemy']['name'],kind='encounter',description='A hostile creature appears.',hp=c['enemy']['hp'])
 
-def use_item(c,item,hero_index=None):
+def enemy_response(c,hero,rng,guard=0):
+    """Single authoritative enemy reaction shared by attacks, guard, spells and items."""
+    enemy=c.get('enemy')
+    if not enemy:return ''
+    import loot_system
+    phase=2 if enemy.get('boss') and enemy['hp']<=enemy.get('max_hp',30)//2 else 1
+    if enemy.get('boss'):
+        enemy['phase']=phase
+        move='Bellshock' if phase==2 else 'Guardian Slam'
+        rolled=rng.randint(2,5) if phase==2 else rng.randint(1,4)
+    else:
+        move='Counterattack'
+        rolled=rng.randint(1,4)
+    if enemy.pop('weakened',False):
+        rolled=max(0,rolled-2)
+    defense=loot_system.bonuses(hero)['defense']
+    if enemy.pop('staggered',False):
+        return 'The enemy is staggered and cannot retaliate.'
+    ward=hero.get('ward_charges',0)
+    if ward:
+        hero['ward_charges']=ward-1
+        defense+=3+hero.pop('ward_strength',0)
+    damage=max(0,rolled-max(0,guard)-defense)
+    hero['hp']=max(0,hero['hp']-damage)
+    if not any(member['hp']>0 for member in c['characters']):
+        c['party_defeated']=True
+    prefix='Boss uses '+move+'. ' if enemy.get('boss') else ''
+    return prefix+('Enemy retaliates for '+str(damage)+' HP.' if damage else 'The attack is blocked.')
+
+def retreat_to_town(c):
+    """Emergency defeat recovery, without defeating the enemy or granting rewards."""
+    if not c.get('started') or not c.get('enemy'):raise ValueError('Retreat requires an active encounter.')
+    if not c.get('party_defeated'):raise ValueError('Retreat is only available after the whole party falls.')
+    c['enemy']=None
+    c['location']='square'
+    c['party_defeated']=False
+    for hero in c['characters']:
+        hero['hp']=max(1,hero['max_hp']//4)
+        hero['mana']=max(0,hero['max_mana']//4)
+        hero['gold']=max(0,hero['gold']-3)
+    c['turn']+=1
+    msg='The village healers retrieve the defeated party. Everyone recovers to one-quarter health; each loses up to 3 gold.'
+    c['history'].append(msg)
+    return msg
+
+def use_item(c,item,hero_index=None,rng=None):
     """Use inventory items with authoritative, persisted effects.
 
     No AI response is allowed to directly change HP, inventory, or gold.
@@ -99,8 +159,16 @@ def use_item(c,item,hero_index=None):
     hero['hp']+=amount
     hero['inventory'].remove(item)
     message=f"{hero['name']} drinks {item} and restores {amount} HP."
+    if c.get('enemy'):
+        # Consuming supplies during battle takes the character's turn.
+        # Prevent free unlimited healing while a hostile opponent remains.
+        attacker=rng or random.Random()
+        message+=' '+enemy_response(c,hero,attacker)
     c['history'].append(message)
     c['turn']+=1
+    if c.get('enemy'):
+        import combat_log
+        combat_log.append(c,actor=hero['name'],kind='item',description=message,hp=hero['hp'])
     return message
 
 def action(c,text,rng=None):
@@ -110,6 +178,9 @@ def action(c,text,rng=None):
     hero=c['characters'][c['active']];t=text.lower()
     if hero['hp']==0:raise ValueError('This character is incapacitated.')
     known=next((m for m in hero['moves'] if re.search(r'(?<!\w)'+re.escape(m.lower())+r'(?!\w)',t)),None)
+    # Generic spellcasting invokes an actually learned spell, never an invented one.
+    if not known and hero['class']=='Mage' and re.fullmatch(r'(?:i\s+)?cast (?:a |the |my )?spell',t):
+        known=hero['moves'][0] if hero['moves'] else None
     # Never let typed names of future skills bypass level requirements.
     if hero.get('class')=='Mage' and hero.get('magic') in SPELLS:
         import spell_catalog
@@ -120,39 +191,112 @@ def action(c,text,rng=None):
     else:
         future=[]
     for entry in future:
-        if entry['level']>hero['level'] and re.search(r'(?<!\\w)'+re.escape(entry['name'].lower())+r'(?!\\w)',t):
+        if entry['level']>hero['level'] and re.search(r'(?<!\w)'+re.escape(entry['name'].lower())+r'(?!\w)',t):
             raise ValueError('That technique or spell is not unlocked at your level.')
+    # Names from *other* schools and paths are not free-form generic checks.
+    # This prevents class/school spoofing by typing another archetype's move.
+    all_named={name for names in SPELLS.values() for name in names}
+    all_named.update(name for names in MOVES.values() for name in names)
+    import spell_catalog, technique_catalog
+    for school in SPELLS:
+        all_named.update(entry['name'] for entry in spell_catalog.catalog(school))
+    for path in technique_catalog.TECHNIQUES:
+        all_named.update(entry['name'] for entry in technique_catalog.catalog(path))
+    explicitly_named=bool(re.match(r'^(?:i\s+)?(?:use|cast|invoke|perform)\b',t))
+    if explicitly_named:
+        for ability in all_named:
+            if ability not in hero['moves'] and re.search(r'(?<!\w)'+re.escape(ability.lower())+r'(?!\w)',t):
+                raise ValueError('That spell or technique is not available to this character.')
+    if re.match(r'^(?:i\s+)?(?:cast|invoke)\b',t) and not known:
+        raise ValueError('This character has not learned that spell.')
     if any(x in t for x in ['teleport','stop time','resurrect']):raise ValueError('This exceeds your known Level 1 abilities.')
     if any(x in t for x in ['cast ','spell','fireball']) and not known and hero['magic']=='None':raise ValueError('Your character does not have that magic.')
-    defensive=bool(c.get('enemy')) and (bool(known and any(w in known.lower() for w in ('guard','ward','dodge','escape','stance','parry','counter'))) or any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover')))
+    import ability_effects
+    ability_role=ability_effects.role(hero,known)
+    defensive=bool(c.get('enemy')) and (ability_role=='ward' or (not known and any(re.search(r'(?<!\w)'+w+r'(?!\w)',t) for w in ('guard','defend','block','take cover'))))
     cost=3 if known and not defensive else 0
+    if cost:
+        import loot_system
+        # A magic focus reduces the effort to invoke learned abilities,
+        # without permitting free unlimited spellcasting.
+        cost=max(1,cost-min(2,loot_system.bonuses(hero)['mana']))
+    # Learned techniques use the same resource and attack rules as spells.
+    # An ability with a defensive name remains a guard, not a free attack.
     if hero['mana']<cost:raise ValueError('Not enough mana.')
     attack=bool(c['enemy']) and not defensive and (bool(known) or any(x in t for x in ['attack','shoot','stab','slash','strike','hit ','punch','kick']))
     social=any(x in t for x in ['persuad','convinc','negotia','bargain','talk to'])
     sneak=any(x in t for x in ['sneak','hide','escape','dodge'])
     stat='CHA' if social else 'INT' if hero['class']=='Mage' and known else 'DEX' if sneak or hero['class']=='Rogue' and attack else 'STR' if attack else 'WIS'
     modifier=(hero['stats'][stat]-10)//2
+    if attack:
+        import equipment
+        modifier+=equipment.attack_bonus(hero)
+        import loot_system
+        modifier+=loot_system.bonuses(hero)['attack']
     dc=c['enemy']['ac'] if attack else 13
     roll=rng.randint(1,20);total=roll+modifier
     degree='Critical Success' if roll==20 else 'Critical Failure' if roll==1 else 'Exceptional Success' if total>=dc+5 else 'Success' if total>=dc else 'Partial Success' if total>=dc-3 else 'Failure'
     hero['mana']-=cost
     outcome=[]
-    if attack:
+    support_spell=ability_role in ('heal','mana') and bool(known)
+    if support_spell:
+        if degree in ('Success','Exceptional Success','Critical Success'):
+            if ability_role=='mana':
+                restored=min(hero['max_mana']-hero['mana'],4+hero['level'])
+                hero['mana']+=restored
+                outcome.append(f'{restored} mana restored.')
+            else:
+                restored=min(hero['max_hp']-hero['hp'],5+hero['level'])
+                hero['hp']+=restored
+                outcome.append(f'{restored} HP restored.')
+        else:
+            outcome.append('The support spell fails to take hold.')
+        if c.get('enemy'):
+            outcome.append(enemy_response(c,hero,rng))
+    elif ability_role=='ward' and known:
+        outcome.append(ability_effects.ward(hero,known,degree in ('Success','Exceptional Success','Critical Success')))
+        if c.get('enemy'):outcome.append(enemy_response(c,hero,rng))
+    elif attack:
         if degree in ('Success','Exceptional Success','Critical Success'):
             dmg=rng.randint(1,6)+max(0,modifier)
+            if known:
+                # Distinguish class actions from a basic weapon swing.
+                # Bonus scales gently with progression and stays deterministic.
+                import ability_progression
+                dmg+=ability_progression.damage_bonus(hero,known)
+                dmg+=min(4,sum(' Mastery ' in p for p in hero.get('passives',[]))//2)
+            if known and ability_role in ('damage','control'):
+                bonus,flavour=ability_effects.offensive_effect(c,hero,known)
+                dmg+=bonus
+                if flavour:outcome.append(flavour)
             if roll==20:dmg*=2
             c['enemy']['hp']=max(0,c['enemy']['hp']-dmg);outcome.append(f'{dmg} damage inflicted.')
+            if ability_role=='control' and c['enemy']['hp']>0:outcome.append(ability_effects.apply_control(c,hero,known,True))
         if c['enemy']['hp']==0:
-            outcome.append('Enemy defeated, +10 XP, +8 gold.');new_spells=award_experience(hero,10);hero['gold']+=8;c['enemy']=None
+            outcome.append('Enemy defeated, +10 XP to the victor, +5 XP to each surviving ally, +8 gold.')
+            new_spells=award_experience(hero,10+max(0,(hero['stats'].get('INT',10)-10)//3))
+            for ally in c['characters']:
+                if ally is not hero and ally['hp']>0:
+                    award_experience(ally,5+max(0,(ally['stats'].get('INT',10)-10)//4))
+            hero['gold']+=8
+            import loot_system
+            pool=['Travel Rations','Health Potion','Wolf Fang','Greatsword','Guardian Ring']
+            dropped=pool[rng.randint(0,len(pool)-1)]
+            hero['inventory'].append(dropped)
+            outcome.append('Loot: '+dropped+'.')
+            c.setdefault('loot_history',[]).append({'item':dropped,'turn':c['turn'],'boss':bool(c['enemy'].get('boss'))})
+            c['loot_history']=c['loot_history'][-100:]
+            if c['enemy'].get('boss'):
+                hero['inventory'].append('Hollow Guardian Relic')
+                outcome.append('Boss trophy: Hollow Guardian Relic.')
+            c['enemy']=None
             if new_spells:outcome.append('New spells learned: '+', '.join(new_spells)+'.')
         else:
-            dmg=rng.randint(1,4);hero['hp']=max(0,hero['hp']-dmg);outcome.append(f'Enemy retaliates for {dmg} HP.')
+            outcome.append(enemy_response(c,hero,rng))
     elif defensive:
-        incoming=rng.randint(1,4)
-        reduction=2 if total>=dc else 1
-        damage=max(0,incoming-reduction)
-        hero['hp']=max(0,hero['hp']-damage)
-        outcome.append(f'Guard stance reduces an incoming {incoming} damage to {damage}.')
+        incoming_reduction=(2 if total>=dc else 1)+min(3,sum(' Mastery ' in p for p in hero.get('passives',[]))//3)
+        message=enemy_response(c,hero,rng,guard=incoming_reduction) if c.get('enemy') else 'Guard stance held.'
+        outcome.append('Guard stance reduces incoming damage. '+message)
     elif 'smoke' in t or 'cover' in t:
         if known and hero['magic']=='Fire' and any(x in t for x in ['leaves','grass','wood']) and total>=dc:
             c['smoke']=True;outcome.append('Flammable terrain catches, creating smoke cover.')
@@ -163,12 +307,38 @@ def action(c,text,rng=None):
         # hides, or tries another creative action. Avoid free infinite turns.
         if c.get('enemy'):
             guarded=any(re.search(r'(?<!\w)'+word+r'(?!\w)',t) for word in ('guard','defend','block','shield','dodge')) and total>=dc
-            retaliation=max(0,rng.randint(1,4)-(2 if guarded else 0))
-            hero['hp']=max(0,hero['hp']-retaliation)
-            outcome.append(f'Enemy retaliates for {retaliation} HP.' if retaliation else 'Your guard prevents the counterattack.')
+            outcome.append(enemy_response(c,hero,rng,guard=2 if guarded else 0))
     result=f'D20 {roll} {modifier:+d} = {total}, DC {dc}: {degree}. '+' '.join(outcome)
     c['turn']+=1;c['history'].append(hero['name']+': '+text+'\n'+result)
+    if c.get('enemy') or attack or defensive:
+        import combat_log
+        combat_log.append(c,actor=hero['name'],kind='action',description=result,hp=hero['hp'])
     return {'roll':roll,'modifier':modifier,'total':total,'dc':dc,'degree':degree,'result':result,'hero':hero['name'],'action':text}
+
+def _valid_optional_gameplay(data):
+    """Validate new gameplay fields while accepting saves from before they existed."""
+    if data.get('guild_job') is not None:
+        job=data['guild_job']
+        if not isinstance(job,dict) or not isinstance(job.get('name'),str):return False
+        import town_services
+        if job['name'] not in town_services.JOBS:return False
+        if not isinstance(job.get('start_turn'),int):return False
+    if not isinstance(data.get('guild_jobs_completed',0),int) or data.get('guild_jobs_completed',0)<0:return False
+    if data.get('party_defeated',False) not in (True,False):return False
+    if data.get('town_memory') is not None:
+        if not isinstance(data['town_memory'],dict):return False
+        if any(not isinstance(v,int) or v<0 or v>100 for v in data['town_memory'].values()):return False
+    for hero in data.get('characters',[]):
+        if not isinstance(hero.get('level',1),int) or not 1<=hero.get('level',1)<=100:return False
+        if not isinstance(hero.get('xp',0),int) or hero.get('xp',0)<0:return False
+        if hero.get('gear_slots') is not None:
+            if not isinstance(hero['gear_slots'],dict):return False
+            import loot_system
+            if any(kind not in ('weapon','armor','trinket') or item not in loot_system.ITEMS for kind,item in hero['gear_slots'].items()):return False
+        if hero.get('enchantments') is not None:
+            if not isinstance(hero['enchantments'],dict):return False
+            if any(not isinstance(level,int) or not 0<=level<=3 for level in hero['enchantments'].values()):return False
+    return True
 
 def _valid_campaign(data):
     """Never admit an arbitrary or partial JSON document as a playable save."""
@@ -183,14 +353,20 @@ def _valid_campaign(data):
                 and (data['active']==0 if not data['characters'] else 0<=data['active']<len(data['characters']))
                 and all(isinstance(h,dict) and isinstance(h.get('name'),str)
                         and h.get('class') in PATHS and isinstance(h.get('stats'),dict)
-                        for h in data['characters']))
+                        for h in data['characters']) and _valid_optional_gameplay(data))
     except (KeyError,TypeError,ValueError,AttributeError):return False
 
 def save(root,c):
     import os, shutil, tempfile
     if not _valid_campaign(c):raise ValueError('Invalid campaign state; refusing to overwrite save.')
-    target=Path(root)/'campaigns';target.mkdir(parents=True,exist_ok=True)
+    root=Path(root)
+    target=root/'campaigns'
+    if root.is_symlink() or target.is_symlink():
+        raise ValueError('Refusing symbolic-link save storage.')
+    target.mkdir(parents=True,exist_ok=True)
     p=target/(c['id']+'.json');backup=p.with_suffix('.bak')
+    if p.is_symlink() or backup.is_symlink():
+        raise ValueError('Refusing symbolic-link save files.')
     raw=json.dumps(c,indent=2,ensure_ascii=False)
     if len(raw.encode('utf-8'))>5_000_000:raise ValueError('Campaign save exceeds limit.')
     # Back up only a readable save; a damaged file must never replace a good backup.
@@ -209,10 +385,11 @@ def save(root,c):
 
 def load_all(root):
     d=Path(root)/'campaigns';out=[]
-    if not d.exists():return out
+    if d.is_symlink() or not d.exists():return out
     for p in sorted(d.glob('*.json')):
         for candidate in (p,p.with_suffix('.bak')):
             try:
+                if candidate.is_symlink():continue
                 if candidate.stat().st_size>5_000_000:continue
                 data=json.loads(candidate.read_text(encoding='utf-8'))
                 if _valid_campaign(data) and p.stem==data['id']:

@@ -87,14 +87,38 @@ def select_character_sprite(registry,character,category='portrait'):
         raise ValueError('Unsupported character sprite category')
     cls=str(character.get('class','Fighter')).lower()
     path=str(character.get('path','')).lower()
-    keys=registry.choose(category,**{'class':cls,'path':path})
-    if not keys:
-        keys=registry.choose(category,**{'class':cls})
-    if not keys:return None
     seed=str(character.get('sprite_seed',character.get('id',character.get('name',''))))
-    index=int.from_bytes(hashlib.sha256((cls+'|'+path+'|'+seed).encode()).digest()[:8],'big')%len(keys)
-    # Deterministic alternate selection if a listed image was removed or corrupted.
-    for offset in range(len(keys)):
-        key=keys[(index+offset)%len(keys)]
-        if registry.bytes(key) is not None:return key
+    # A listed but damaged path sprite must not prevent a valid class fallback.
+    for specificity,keys in (
+        ('path',registry.choose(category,**{'class':cls,'path':path})),
+        ('class',registry.choose(category,**{'class':cls}))):
+        if not keys:continue
+        index=int.from_bytes(hashlib.sha256((cls+'|'+path+'|'+seed+'|'+specificity).encode()).digest()[:8],'big')%len(keys)
+        for offset in range(len(keys)):
+            key=keys[(index+offset)%len(keys)]
+            if registry.bytes(key) is not None:return key
     return None
+
+def find_approved_assets(user_data,application_root=None):
+    """Locate the approved asset pack in installed or bundled locations.
+
+    Deliberately ignore raw or unreviewed sprite downloads. A verified
+    manifest controls exact sprite selection and protects campaign identity.
+    User-installed assets override packaged files so updates don't erase art.
+    """
+    import sys
+    data=Path(user_data)
+    candidates=[data/'approved sprites']
+    if application_root is not None:
+        base=Path(application_root)
+        candidates.extend((base/'assets'/'approved sprites',base/'approved sprites'))
+    frozen=getattr(sys,'_MEIPASS',None)
+    if frozen:
+        base=Path(frozen)
+        candidates.extend((base/'assets'/'approved sprites',base/'approved sprites'))
+    source=Path(__file__).resolve().parent
+    candidates.extend((source/'assets'/'approved sprites',source/'approved sprites'))
+    for candidate in candidates:
+        if (candidate/'manifest.json').is_file():
+            return candidate
+    return candidates[0]

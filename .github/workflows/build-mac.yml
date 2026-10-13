@@ -29,7 +29,7 @@ jobs:
       - name: Test and compile
         run: |
           python -m compileall -q .
-          python -m unittest discover -v
+          python run_mac_tests.py
       - name: Verify approved visual library coverage and provenance (stable only)
         if: github.event_name == 'workflow_dispatch' && inputs.release_tier == 'stable'
         run: python verify_release_assets.py 'assets/approved sprites'
@@ -38,7 +38,12 @@ jobs:
         run: echo 'DEVELOPMENT PREVIEW ONLY — approved sprite asset pack and stable acceptance are not yet complete.'
       - name: Build native Mac app
         run: |
-          python -m PyInstaller --noconfirm --clean --windowed --onedir \
+          # Include only the verified, indexed sprite library when present.
+          ASSET_FLAGS=()
+          if [ -f 'assets/approved sprites/manifest.json' ]; then
+            ASSET_FLAGS+=(--add-data 'assets/approved sprites:assets/approved sprites')
+          fi
+          python -m PyInstaller --noconfirm --clean --windowed --onedir "${ASSET_FLAGS[@]}" \
             --name 'ACE Adventures 3' \
             --osx-bundle-identifier 'game.aceadventures.three' \
             app.py
@@ -78,6 +83,16 @@ jobs:
           PY
       - name: Check packaged-app idle resource budget
         run: python mac_resource_smoke.py
+      - name: Capture actual running game screenshots
+        run: |
+          python capture_ui_mac.py
+          python verify_mac_screenshots.py
+      - name: Upload Phase 2 visual review screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: ACE Adventures 3 Actual Mac Screenshots
+          path: phase 2 actual screenshots/*.png
+          if-no-files-found: error
       - name: Package artifact
         run: |
           ditto -c -k --sequesterRsrc --keepParent 'dist/ACE Adventures 3.app' 'ACE Adventures 3 Mac App.zip'

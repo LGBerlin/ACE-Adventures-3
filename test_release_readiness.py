@@ -26,6 +26,23 @@ class QuestSafety(unittest.TestCase):
         c=self.sample();story.select(c,'elder')
         with self.assertRaises(ValueError):story.select(c,'elder')
 
+class TkLifecycle(unittest.TestCase):
+    def test_destroy_cancels_pending_poll(self):
+        try:
+            import app
+            window=app.App()
+        except tk.TclError as exc:
+            self.skipTest('No graphical display: '+str(exc))
+        try:
+            self.assertIsNotNone(window._poll_job)
+            job=window._poll_job
+            window.destroy()
+            self.assertTrue(window._closed)
+            self.assertIsNone(window._poll_job)
+        finally:
+            if not window._closed:
+                window.destroy()
+
 class GuiSmoke(unittest.TestCase):
     def test_window_startup_and_campaign_ui(self):
         try:

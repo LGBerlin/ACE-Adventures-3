@@ -34,6 +34,31 @@ def report(root):
             magic[school][phase]=sum(reg.bytes(k) is not None for k in keys)
     ready=all(c['complete'] for c in classes.values()) and all(all(x>0 for x in m.values()) for m in magic.values())
     return {'ready':bool(ready),'reason':'All required sprite variants found' if ready else 'Missing path-specific frames or magic effects','classes':classes,'magic':magic,'asset_count':len(reg.records)}
+def visual_review(root):
+    """Flag missing approved art for the final concept-to-game screenshot review."""
+    root=Path(root)
+    baseline=report(root)
+    if not (root/'manifest.json').is_file():
+        return {'ready':False,'review_needed':['No approved artwork pack has been installed'],
+                'missing_portraits':list(PATHS),'missing_bodies':list(PATHS)}
+    try:reg=Registry(root,root/'manifest.json')
+    except (OSError,ValueError,KeyError,TypeError):
+        return {'ready':False,'review_needed':['Approved artwork manifest cannot be opened'],
+                'missing_portraits':list(PATHS),'missing_bodies':list(PATHS)}
+    from asset_registry import select_character_sprite
+    missing_portraits=[];missing_bodies=[]
+    for cls,paths in PATHS.items():
+        for path in paths:
+            sample={'class':cls,'path':path,'sprite_seed':1}
+            if select_character_sprite(reg,sample,'portrait') is None:missing_portraits.append(cls+' / '+path)
+            if select_character_sprite(reg,sample,'body') is None:missing_bodies.append(cls+' / '+path)
+    findings=[]
+    if missing_portraits:findings.append('Portrait art missing for '+str(len(missing_portraits))+' class paths')
+    if missing_bodies:findings.append('Battle body art missing for '+str(len(missing_bodies))+' class paths')
+    if not baseline['ready']:findings.append('Some animation or magic effect frames remain missing')
+    return {'ready':not findings,'review_needed':findings,'missing_portraits':missing_portraits,
+            'missing_bodies':missing_bodies}
+
 def main():
     import argparse
     p=argparse.ArgumentParser()
