@@ -7,6 +7,7 @@ on:
       - 'stage_sprite_candidates.py'
       - 'test_sprite_staging.py'
       - 'candidate_asset_report.py'
+      - 'stage_sprite_review_sheet.py'
 permissions:
   contents: read
 jobs:
@@ -27,7 +28,9 @@ jobs:
           python -m unittest test_sprite_staging -v
           python stage_sprite_candidates.py source/sprites.2.zip 'staged candidates'
       - name: Generate UI/character/scene integration candidate map
-        run: python candidate_asset_report.py 'staged candidates'
+        run: |
+          python candidate_asset_report.py 'staged candidates'
+          python stage_sprite_review_sheet.py 'staged candidates'
       - name: Verify provenance and safe bundle size
         run: |
           python - <<'PY'
