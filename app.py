@@ -5,13 +5,13 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art,character_sheet_art,npc_art
+import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art,character_sheet_art,npc_art,battle_ui_art
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.character_sheet_art=character_sheet_art.CharacterSheetArt(DATA/'character sheet ui');self.npc_art=npc_art.NPCArt(DATA/'npc art');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.character_sheet_art=character_sheet_art.CharacterSheetArt(DATA/'character sheet ui');self.npc_art=npc_art.NPCArt(DATA/'npc art');self.battle_ui_art=battle_ui_art.BattleUIArt(DATA/'battle ui');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
  def _install_shortcuts(self):
   """Keyboard controls are installed once, outside page reconstruction."""
   for key in ui_shortcuts.PANELS:
@@ -134,6 +134,15 @@ class App(tk.Tk):
          'the chronicles':'journal','character sheet':'stats',
          'party':'players','close':'close','help':'help'}
   glyph=self.ui_icons.get(alias.get(label,'')) if hasattr(self,'ui_icons') else None
+  # Battle action art is selected by a fixed allowed label, never by the DM.
+  # Other buttons retain their existing skin and readable live text.
+  if self.c and self.c.get('enemy'):
+   battle_action={'ATTACK':'attack','GUARD':'defend','MAGIC':'magic','SKILLS':'skills',
+                  'ITEM':'item','MOVE':'move','END TURN':'end_turn'}.get(text.strip().upper())
+   if battle_action:
+    battle_png=self.battle_ui_art.button(battle_action)
+    if battle_png:
+     return pixel_controls.PixelButton(parent,text,fn,light,artwork=battle_png,embedded_label=True)
   return pixel_controls.PixelButton(parent,text,fn,light,artwork=asset,glyph=glyph)
 
  def page(self,title):
