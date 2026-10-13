@@ -38,7 +38,12 @@ jobs:
         run: echo 'DEVELOPMENT PREVIEW ONLY — approved sprite asset pack and stable acceptance are not yet complete.'
       - name: Build native Mac app
         run: |
-          python -m PyInstaller --noconfirm --clean --windowed --onedir \
+          # Include only the verified, indexed sprite library when present.
+          ASSET_FLAGS=()
+          if [ -f 'assets/approved sprites/manifest.json' ]; then
+            ASSET_FLAGS+=(--add-data 'assets/approved sprites:assets/approved sprites')
+          fi
+          python -m PyInstaller --noconfirm --clean --windowed --onedir "${ASSET_FLAGS[@]}" \
             --name 'ACE Adventures 3' \
             --osx-bundle-identifier 'game.aceadventures.three' \
             app.py
