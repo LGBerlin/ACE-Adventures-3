@@ -10,6 +10,7 @@ class CommandRouterTests(unittest.TestCase):
         for text,panel in (
             ('open inventory','Pack'),
             ('show character sheet','Record'),
+            ('show stats','Record'),
             ('show my spells','Abilities'),
             ('open shop','Shop'),
             ('show world map','Map'),
