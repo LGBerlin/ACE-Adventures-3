@@ -59,8 +59,19 @@ def main():
             campaign['location']='square'
             capture(ui,'Story Tree',root/'05 Story Tree.png')
             capture(ui,'Map',root/'06 Map.png')
+            capture(ui,'Record',root/'07 Character Sheet.png')
+            capture(ui,'Abilities',root/'08 Abilities and Magic.png')
+            capture(ui,'Journal',root/'09 Quest Journal.png')
+            capture(ui,'Dice Board',root/'10 Dice Board.png')
+            capture(ui,'Town',root/'11 Town Services.png')
+            # Character creation screen: a real Tk render, not a concept illustration.
+            ui._new()
+            ui.deiconify();ui.lift();ui.update();ui.update_idletasks()
+            time.sleep(0.5)
+            subprocess.run(['screencapture','-x',str(root/'12 Campaign Setup.png')],check=True,timeout=12)
+
         finally:
             ui.destroy()
-    print('Six screenshots captured by macOS screen capture utility.')
+    print('Twelve actual macOS interface views captured.')
 if __name__=='__main__':
     main()
