@@ -501,6 +501,7 @@ class App(tk.Tk):
    if not merchant.available(self.c):
     self.label(txt,"Visit Yarrow's Apothecary to trade. No trading during combat.",12,wraplength=260).pack(anchor='w',pady=8)
    else:
+    self._npc_portrait(txt,'apothecary')
     self.label(txt,f"PURSE · {h['gold']} gold",14).pack(anchor='w',pady=6)
     last_category=None
     for item,detail in merchant.CATALOG.items():
@@ -533,6 +534,22 @@ class App(tk.Tk):
    present=[name for name,info in town_services.PEOPLE.items() if info['place']==self.c['location']]
    for name in present:
     line=tk.Frame(txt,bg=PARCH);line.pack(fill='x',pady=2)
+    role={'Oren':'merchant','Yarrow':'apothecary','Enchanter Elira':'mage',
+          'Mira':'innkeeper','Captain Rowan':'guard',
+          'Elder Sera':'priest','Tomas':'scholar','Nella':'herbalist'}.get(name)
+    if role:
+     png=self.npc_art.bytes(role,'portrait')
+     if png:
+      try:
+       from PIL import Image,ImageTk
+       with Image.open(BytesIO(png)) as picture:
+        picture=picture.convert('RGBA')
+        picture.thumbnail((35,42),Image.Resampling.NEAREST)
+        sprite=ImageTk.PhotoImage(picture,master=line)
+       avatar=tk.Label(line,image=sprite,bg=PARCH)
+       avatar.image=sprite
+       avatar.pack(side='left',padx=(0,5))
+      except (OSError,ValueError,ImportError,tk.TclError):pass
     self.label(line,name,10).pack(side='left')
     self.button(line,'TALK',lambda who=name:self._free('talk to '+who),True).pack(side='right')
    if self.c['location']=='square':
