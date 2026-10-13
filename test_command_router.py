@@ -28,7 +28,12 @@ class CommandRouterTests(unittest.TestCase):
 
     def test_learned_fireball_dispatches_rules_action(self):
         self.c['characters'][0]['moves'].append('Fireball')
-        self.assertEqual(command_router.route('cast fireball at the goblin',self.c)['text'],'cast Fireball')
+        self.assertEqual(command_router.route('cast fireball at the goblin',self.c)['text'],'cast fireball at the goblin')
+
+    def test_learned_named_ability_preserves_target(self):
+        self.c['characters'][0]['moves'].append('Ice Shard')
+        self.assertEqual(command_router.route('cast Ice Shard at the skeleton',self.c)['text'],
+                         'cast Ice Shard at the skeleton')
 
     def test_no_shop_during_combat(self):
         self.c['enemy']={'name':'Goblin'}
