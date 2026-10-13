@@ -212,6 +212,19 @@ class App(tk.Tk):
    if h['hp']<=0:self.label(hero_frame,'INCAPACITATED',9,fg=visual_theme.COLORS['danger'],bg=hero_frame['bg']).pack(anchor='w',padx=8,pady=(0,3))
   outer,f=self.card(left,story.PLACES[self.c['location']][0])
   outer.pack(fill='both',expand=True)
+  if self.busy:
+   self.label(f,'The Dungeon Master is preparing the next passage...',11).pack(side='bottom',anchor='w',padx=16,pady=3)
+  self.label(f,'WHAT DO YOU DO?',13).pack(side='bottom',anchor='w',padx=16,pady=(0,3))
+  row=tk.Frame(f,bg=PARCH)
+  row.pack(side='bottom',fill='x',padx=13,pady=(0,12))
+  entry=tk.Entry(row,font=('Georgia',14),bg='#fff0d3',fg=INK,insertbackground=INK,relief='solid',bd=2)
+  entry.pack(side='left',fill='x',expand=True,padx=4,ipady=6)
+  def submit():
+   entered=entry.get().strip()
+   if entered:self._free(entered)
+  entry.bind('<Return>',lambda event:submit())
+  self.button(row,'SEND ACTION',submit,True).pack(side='right',padx=4)
+  entry.focus_set()
   self.label(f,tabletop_layout.scene_caption(story.PLACES[self.c['location']][0],self.c.get('enemy')),11,fg=visual_theme.COLORS['muted_ink']).pack(anchor='w',padx=18,pady=(4,0))
   cv=tk.Canvas(f,height=layout.scene_height,bg=DARK,highlightthickness=0)
   cv.pack(fill='x',padx=12,pady=8)
@@ -253,19 +266,7 @@ class App(tk.Tk):
      self.button(actions,caption,lambda command=command:self._free(command),True).pack(side='left',padx=4)
     self.button(actions,'ABILITIES',lambda:self._panel('Abilities'),True).pack(side='left',padx=4)
     self.button(actions,'POTIONS',lambda:self._panel('Pack'),True).pack(side='left',padx=4)
-  if self.busy:
-   self.label(f,'The Dungeon Master is preparing the next passage...',11).pack(anchor='w',padx=16,pady=3)
-  self.label(f,'WHAT DO YOU DO?',13).pack(anchor='w',padx=16,pady=(0,3))
-  row=tk.Frame(f,bg=PARCH)
-  row.pack(fill='x',padx=13,pady=(0,12))
-  entry=tk.Entry(row,font=('Georgia',14),bg='#fff0d3',fg=INK,insertbackground=INK,relief='solid',bd=2)
-  entry.pack(side='left',fill='x',expand=True,padx=4,ipady=6)
-  def submit():
-   entered=entry.get().strip()
-   if entered:self._free(entered)
-  entry.bind('<Return>',lambda event:submit())
-  self.button(row,'SEND ACTION',submit,True).pack(side='right',padx=4)
-  entry.focus_set()
+
  def _resource_bar(self,parent,label,current,maximum,color):
   frame=tk.Frame(parent,bg=PARCH);frame.pack(fill='x',padx=15,pady=(2,3))
   self.label(frame,f'{label}  {current}/{maximum}',10).pack(anchor='w')
