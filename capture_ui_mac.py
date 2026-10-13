@@ -23,6 +23,9 @@ def capture(ui,location,destination):
     ui.update_idletasks()
     time.sleep(0.5)
     ui.update()
+    # Reject captures where the app extends beyond the available display.
+    if ui.winfo_rootx()+ui.winfo_width()>ui.winfo_screenwidth() or ui.winfo_rooty()+ui.winfo_height()>ui.winfo_screenheight():
+        raise RuntimeError('Game window would be clipped in this screenshot')
     shot=destination
     proc=subprocess.run(['screencapture','-x',str(shot)],capture_output=True,text=True,timeout=12)
     if proc.returncode or not shot.is_file() or shot.stat().st_size<5000:
@@ -37,7 +40,7 @@ def main():
     with patch.object(app,'DATA',root/'test campaign data'):
         ui=app.App()
         try:
-            ui.geometry('1300x880+50+50')
+            ui.geometry('960x680+20+35')
             campaign=game.new_campaign('Screenshot Review',4)
             for i,cls in enumerate(('Fighter','Rogue','Mage','Vessel')):
                 game.add_hero(campaign,game.character(('Arin','Syl','Iris','Vale')[i],25,cls,random.Random(i+14)))
