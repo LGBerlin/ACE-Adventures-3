@@ -20,7 +20,7 @@ class Effects:
                 data=json.loads(index.read_text(encoding='utf-8'))
                 if not isinstance(data,dict):return
                 for effect,filename in data.items():
-                    if NAME.fullmatch(effect) and isinstance(filename,str) and re.fullmatch(r'effect_[0-9]{3}\\.png',filename):
+                    if NAME.fullmatch(effect) and isinstance(filename,str) and re.fullmatch(r'effect_[0-9]{3}\.png',filename):
                         self.mapping[effect]=filename
             except (ValueError,OSError):
                 pass
