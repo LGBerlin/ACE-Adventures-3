@@ -308,7 +308,7 @@ class App(tk.Tk):
    self._resource_bar(f,'MANA',h['mana'],h['max_mana'],visual_theme.COLORS['mana'])
   else:
    self.label(f,h['name']+' · Lv '+str(h['level'])+' · '+game.display_archetype(h),12).pack(anchor='w',padx=14,pady=(5,2))
-   self.label(f,'HP '+str(h['hp'])+'/'+str(h['max_hp'])+'  ·  MP '+str(h['mana'])+'/'+str(h['max_mana']),10).pack(anchor='w',padx=14,pady=(0,4))
+   self.label(f,'HEALTH '+str(h['hp'])+'/'+str(h['max_hp'])+' · MANA '+str(h['mana'])+'/'+str(h['max_mana']),10).pack(anchor='w',padx=14,pady=(0,4))
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for i,name in enumerate(visual_theme.NAVIGATION):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
