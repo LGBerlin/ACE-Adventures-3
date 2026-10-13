@@ -2,7 +2,7 @@
 from pathlib import Path
 from PIL import Image,ImageChops,ImageStat
 
-NAMES=('01 Exploration.png','02 Inventory.png','03 Shop.png','04 Battle.png','05 Story Tree.png','06 Map.png')
+NAMES=('01 Exploration.png','02 Inventory.png','03 Shop.png','04 Battle.png','05 Story Tree.png','06 Map.png','07 Character Sheet.png','08 Abilities and Magic.png','09 Quest Journal.png','10 Dice Board.png','11 Town Services.png','12 Campaign Setup.png')
 
 def verify(folder):
     folder=Path(folder)
