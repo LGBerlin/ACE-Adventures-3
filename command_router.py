@@ -34,11 +34,17 @@ def route(text, campaign):
                     raise ValueError('Finish the encounter before opening town services or travelling.')
                 return {'kind':'panel','panel':panel}
     match=SPELL.match(text)
-    if match:
+    if match and campaign.get('characters'):
+        hero=campaign['characters'][campaign['active']]
         name=' '.join(match.group(1).casefold().split())
-        if name in ('fireball','fire ball'):
-            hero=campaign['characters'][campaign['active']]
-            if not any(move.casefold()=='fireball' for move in hero.get('moves',())):
-                raise ValueError('Fireball is not learned. Open Abilities to see available spells.')
-            return {'kind':'action','text':'cast Fireball'}
+        if name == 'fire ball':
+            name='fireball'
+        # Exact learned ability names are authoritative; keep the original
+        # command and target so the rules engine and combat log can use them.
+        learned={move.casefold():move for move in hero.get('moves',())}
+        if name in learned:
+            return {'kind':'action','text':text}
+        if name=='fireball':
+            raise ValueError('Fireball is not learned. Open Abilities to see available spells.')
+        # All other unknown spells stay on the existing rules-validation path.
     return {'kind':'action','text':text}
