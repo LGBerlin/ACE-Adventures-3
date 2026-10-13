@@ -5,7 +5,7 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects,tabletop_layout
+import visual_theme,battle_effects,tabletop_layout,pixel_controls
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
@@ -65,22 +65,9 @@ class App(tk.Tk):
  def label(self,parent,text,size=12,fg=INK,bg=PARCH,**kw):
   return tk.Label(parent,text=text,font=('Georgia',size,'bold' if size>=17 else 'normal'),fg=fg,bg=bg,justify='left',wraplength=kw.get('wraplength',0),anchor='w')
  def button(self,parent,text,fn,light=False):
-  """Paint consistent high-contrast controls; macOS native buttons ignore bg."""
-  bg=visual_theme.COLORS['parchment_light'] if light else visual_theme.COLORS['wood_dark']
-  fg=INK if light else LIGHT
-  control=tk.Label(parent,text=text,font=('Georgia',11,'bold'),bg=bg,fg=fg,
-                   relief='raised',bd=2,highlightthickness=1,highlightbackground=BRASS,
-                   padx=11,pady=8,cursor='hand2',takefocus=True)
-  normal_bg=bg
-  highlight_bg=visual_theme.COLORS['brass_light'] if light else visual_theme.COLORS['wood_highlight']
-  control.bind('<Enter>',lambda event:control.configure(bg=highlight_bg))
-  control.bind('<Leave>',lambda event:control.configure(bg=normal_bg))
-  control.bind('<FocusIn>',lambda event:control.configure(highlightthickness=3,highlightbackground=visual_theme.COLORS['brass_light']))
-  control.bind('<FocusOut>',lambda event:control.configure(highlightthickness=1,highlightbackground=BRASS))
-  control.bind('<ButtonRelease-1>',lambda event:fn() if control.winfo_containing(event.x_root,event.y_root)==control else None)
-  control.bind('<Return>',lambda event:fn())
-  control.bind('<space>',lambda event:fn())
-  return control
+  """Pixel-art wood/brass/parchment button, preserving gameplay callbacks."""
+  return pixel_controls.PixelButton(parent,text,fn,light)
+
  def page(self,title):
   self.clear();bar=tk.Frame(self,bg=visual_theme.COLORS['wood_dark'],height=72);bar.pack(fill='x')
   self.label(bar,'A.C.E.  ADVENTURES III    ✦',22,LIGHT,visual_theme.COLORS['wood_dark']).pack(side='left',padx=20,pady=12)
