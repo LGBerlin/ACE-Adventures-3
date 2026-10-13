@@ -65,8 +65,8 @@ class App(tk.Tk):
     return
    except (ImportError,OSError,ValueError,tk.TclError):pass
   canvas.create_rectangle(6,6,width-6,height-6,outline=BRASS,width=2)
-  scale=2 if compact else 4
-  art.character(canvas,max(8,width//2-13*scale),max(3,height//2-16*scale),hero['class'],hero['sprite_seed'],scale)
+  scale=1 if compact else max(2,min(4,height//110))
+  art.character(canvas,max(2,(width-32*scale)//2),max(2,(height-33*scale)//2),hero['class'],hero['sprite_seed'],scale)
  def _battle_character(self,canvas,hero,x,y,size):
   """Use approved body artwork in combat, preserving stable character identity."""
   key=asset_registry.select_character_sprite(self.asset_pack,hero,'body')
@@ -104,7 +104,9 @@ class App(tk.Tk):
   self.button(bar,'AI CONNECTIONS',self._connections).pack(side='right',padx=5)
   self.button(bar,'CHECK UPDATES',self._check_content_updates).pack(side='right',padx=5)
  def card(self,parent,title=''):
-  outer=tk.Frame(parent,bg=WOOD,bd=3,relief='ridge');inner=tk.Frame(outer,bg=PARCH,highlightbackground=BRASS,highlightthickness=2);inner.pack(fill='both',expand=True,padx=5,pady=5)
+  outer=tk.Frame(parent,bg=visual_theme.COLORS['wood_dark'],bd=4,relief='flat',highlightbackground=BRASS,highlightthickness=2)
+  inner=tk.Frame(outer,bg=PARCH,highlightbackground=visual_theme.COLORS['wood_highlight'],highlightthickness=4)
+  inner.pack(fill='both',expand=True,padx=5,pady=5)
   if title:
    self.label(inner,'❧   '+title.upper()+'   ❧',14,fg='#78512f').pack(anchor='w',padx=16,pady=(14,7))
    tk.Frame(inner,bg=BRASS,height=2).pack(fill='x',padx=16,pady=(0,5))
