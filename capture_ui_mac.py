@@ -15,8 +15,7 @@ import game
 import story
 
 def capture(ui,location,destination):
-    ui._adventure()
-    if location!='Record':ui._panel(location)
+    ui._panel(location)
     ui.deiconify()
     ui.lift()
     ui.update()
