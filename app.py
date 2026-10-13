@@ -599,7 +599,8 @@ class App(tk.Tk):
     self._panel(command['panel'])
     return
    had_enemy=bool(self.c.get('enemy'))
-   result=interaction.perform(self.c,command['text'])
+   text=command['text']
+   result=interaction.perform(self.c,text)
    hero=self.c['characters'][self.c['active']]
    if result['roll_required']:
     visual=visual_mapping.cue_for(hero,result)
