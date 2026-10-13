@@ -5,13 +5,13 @@ from pathlib import Path
 import merchant,equipment,atlas,dice_ledger,loot_system,town_services,training_scrolls
 import game,ai,story,art,ai_connections,addon_updates,update_addons,app_release_checker,comfy_art,asset_registry,story_tree,animation_director,visual_mapping,spell_catalog,technique_catalog,interaction,ability_progression
 from io import BytesIO
-import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art
+import visual_theme,battle_effects,tabletop_layout,pixel_controls,command_router,ui_shortcuts,magic_effect_pack,ui_icon_pack,fighter_art,rogue_art,vessel_art,mage_art,character_sheet_art
 DATA=Path.home()/'Library'/'Application Support'/'ACE Adventures 3'
 DARK=visual_theme.COLORS['background'];PARCH=visual_theme.COLORS['parchment'];INK=visual_theme.COLORS['ink'];BRASS=visual_theme.COLORS['brass'];WOOD=visual_theme.COLORS['wood'];LIGHT=visual_theme.COLORS['ivory']
 class App(tk.Tk):
  def __init__(self):
   super().__init__();self.title('ACE Adventures III — The Hollow Bell');self.geometry('1300x880');self.minsize(960,700);self.configure(bg=DARK)
-  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
+  self.c=None;self.busy=False;self.pending_narration=None;self.q=queue.Queue();self.panel='Record';self.last_roll=None;self.update_status='Not checked';self._sprite_refs=[];self.animation_director=animation_director.Director();self.last_visual_cue=None;self.last_visual_tier=1;self.asset_pack=asset_registry.Registry(asset_registry.find_approved_assets(DATA),max_cache_bytes=16*1024*1024);self._poll_job=None;self._closed=False;self._load_asset_index();self.fighter_art=fighter_art.FighterArt(DATA/'fighter art');self.rogue_art=rogue_art.RogueArt(DATA/'rogue art');self.vessel_art=vessel_art.VesselArt(DATA/'vessel art');self.mage_art=mage_art.MageArt(DATA/'mage art');self.character_sheet_art=character_sheet_art.CharacterSheetArt(DATA/'character sheet ui');self.ui_icons=ui_icon_pack.UIIcons(DATA/'utility ui');self.magic_effects=magic_effect_pack.Effects(DATA/'magic effects');self.battle_effects=magic_effect_pack.Effects(DATA/'battle effects');self._install_shortcuts();self._home();self._poll_job=self.after(400,self._poll)
  def _install_shortcuts(self):
   """Keyboard controls are installed once, outside page reconstruction."""
   for key in ui_shortcuts.PANELS:
@@ -418,6 +418,19 @@ class App(tk.Tk):
   window_id=viewport.create_window((0,0),window=txt,anchor='nw')
   txt.bind('<Configure>',lambda event:viewport.configure(scrollregion=viewport.bbox('all')))
   viewport.bind('<Configure>',lambda event:viewport.itemconfigure(window_id,width=event.width))
+  if self.panel in ('Record','Pack','Abilities'):
+   tab_png=self.character_sheet_art.tab(self.panel)
+   if tab_png:
+    try:
+     from PIL import Image,ImageTk
+     with Image.open(BytesIO(tab_png)) as source:
+      tab_img=source.convert('RGBA')
+      tab_img.thumbnail((180,52),Image.Resampling.NEAREST)
+      tab_photo=ImageTk.PhotoImage(tab_img,master=txt)
+     tab_label=tk.Label(txt,image=tab_photo,bg=PARCH)
+     tab_label.image=tab_photo
+     tab_label.pack(anchor='w',pady=(0,7))
+    except (OSError,ValueError,ImportError,tk.TclError):pass
   if self.panel=='Record':
    self.label(txt,'CHARACTER PROFILE',13).pack(anchor='w',pady=(0,8))
    self.label(txt,'Path  ·  '+h['path'],11).pack(anchor='w',pady=3)
