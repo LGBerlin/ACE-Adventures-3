@@ -25,6 +25,7 @@ class AdventureScreenContractTests(unittest.TestCase):
   self.assertIn("if result['roll_required']:self._roll_display(result)",handler)
  def test_controls_are_explicitly_painted(self):
   button=self.methods['button']
-  self.assertIn('tk.Label(',button)
-  self.assertIn("fg=fg",button)
-  self.assertIn("bg=bg",button)
+  self.assertIn('pixel_controls.PixelButton(',button)
+  import pixel_controls
+  self.assertTrue(issubclass(pixel_controls.PixelButton, __import__('tkinter').Label))
+  self.assertIn("command",pixel_controls.PixelButton.__init__.__code__.co_varnames)
