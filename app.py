@@ -310,7 +310,9 @@ class App(tk.Tk):
   row=tk.Frame(f,bg=PARCH);row.pack(fill='x',padx=8,pady=4)
   for i,name in enumerate(visual_theme.NAVIGATION):
    panel={'Character Sheet':'Record','Inventory':'Pack'}.get(name,name)
-   self.button(row,('◆ ' if self.panel==panel else '')+name,lambda x=panel:self._panel(x),True).grid(row=i//2,column=i%2,padx=3,pady=3,sticky='ew')
+   nav=self.button(row,('◆ ' if self.panel==panel else '')+name,lambda x=panel:self._panel(x),True)
+   nav.configure(padx=5,pady=4,font=('Georgia',9,'bold'))
+   nav.grid(row=i//2,column=i%2,padx=2,pady=2,sticky='ew')
   row.grid_columnconfigure(0,weight=1)
   row.grid_columnconfigure(1,weight=1)
   ledger=tk.Frame(f,bg=PARCH)
@@ -423,6 +425,7 @@ class App(tk.Tk):
      if thing in loot_system.ITEMS:
       self.button(txt,'ENCHANT '+thing,lambda item=thing:self._free('enchant '+item),True).pack(fill='x',pady=2)
   elif self.panel=='Map':
+   self.label(txt,'PARCHMENT ATLAS',13).pack(anchor='w',pady=(0,5))
    self._minimap(txt)
   elif self.panel=='Dice Board':
    records=dice_ledger.history(self.c)
@@ -457,10 +460,10 @@ class App(tk.Tk):
  def _minimap(self,parent):
   """Parchment cartography; destination clicks remain rules-gated."""
   state=atlas.state(self.c)
-  canvas=tk.Canvas(parent,width=274,height=255,bg=visual_theme.COLORS['parchment_light'],
+  canvas=tk.Canvas(parent,width=274,height=215,bg=visual_theme.COLORS['parchment_light'],
                    highlightbackground=BRASS,highlightthickness=2)
   canvas.pack(pady=9)
-  canvas.create_rectangle(8,8,262,245,outline=BRASS,width=2)
+  canvas.create_rectangle(8,8,262,205,outline=BRASS,width=2)
   canvas.create_text(137,20,text='BRIARHOLLOW & ASHWOOD',font=('Georgia',10,'bold'),fill=INK)
   canvas.create_line(236,39,236,67,fill=visual_theme.COLORS['wood'],width=2)
   canvas.create_polygon(236,34,229,45,243,45,fill=visual_theme.COLORS['wood'])
