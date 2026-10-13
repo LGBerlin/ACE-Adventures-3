@@ -98,3 +98,27 @@ def select_character_sprite(registry,character,category='portrait'):
             key=keys[(index+offset)%len(keys)]
             if registry.bytes(key) is not None:return key
     return None
+
+def find_approved_assets(user_data,application_root=None):
+    """Locate the approved asset pack in installed or bundled locations.
+
+    Deliberately ignore raw or unreviewed sprite downloads. A verified
+    manifest controls exact sprite selection and protects campaign identity.
+    User-installed assets override packaged files so updates don't erase art.
+    """
+    import sys
+    data=Path(user_data)
+    candidates=[data/'approved sprites']
+    if application_root is not None:
+        base=Path(application_root)
+        candidates.extend((base/'assets'/'approved sprites',base/'approved sprites'))
+    frozen=getattr(sys,'_MEIPASS',None)
+    if frozen:
+        base=Path(frozen)
+        candidates.extend((base/'assets'/'approved sprites',base/'approved sprites'))
+    source=Path(__file__).resolve().parent
+    candidates.extend((source/'assets'/'approved sprites',source/'approved sprites'))
+    for candidate in candidates:
+        if (candidate/'manifest.json').is_file():
+            return candidate
+    return candidates[0]
