@@ -79,7 +79,9 @@ jobs:
       - name: Check packaged-app idle resource budget
         run: python mac_resource_smoke.py
       - name: Capture actual running game screenshots
-        run: python capture_ui_mac.py
+        run: |
+          python capture_ui_mac.py
+          python verify_mac_screenshots.py
       - name: Upload Phase 2 visual review screenshots
         uses: actions/upload-artifact@v4
         with:
