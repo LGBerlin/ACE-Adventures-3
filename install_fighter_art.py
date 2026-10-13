@@ -20,7 +20,7 @@ def install(archive,destination=DEST):
    staged=Path(tmp)/'fighter art';staged.mkdir()
    for entry in entries:
     name=entry['name']
-    if not re.fullmatch(r'(?:character|portrait|banner|nameplate|skill)_[a-z0-9_]+\\.png',name):
+    if not re.fullmatch(r'(?:character|portrait|banner|nameplate|skill)_[a-z0-9_]+\.png',name):
      raise ValueError('Unsafe sprite name')
     raw=z.read(prefix+name)
     if len(raw)>2_000_000 or hashlib.sha256(raw).hexdigest()!=entry['sha256']:
