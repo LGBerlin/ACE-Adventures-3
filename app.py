@@ -57,7 +57,7 @@ class App(tk.Tk):
     from PIL import Image,ImageTk
     with Image.open(BytesIO(source)) as img:
      img=img.convert('RGBA')
-     img.thumbnail((min(190,width-18),height-18))
+     img.thumbnail((min(190,width-18),height-18),Image.Resampling.NEAREST)
      photo=ImageTk.PhotoImage(img.copy(),master=canvas)
     canvas.create_image(width//2,height//2,image=photo,anchor='center')
     canvas.create_rectangle(6,6,width-6,height-6,outline=BRASS,width=2)
@@ -80,7 +80,7 @@ class App(tk.Tk):
      # Sheets store cells in the first frame; never display the entire atlas.
      if frame.width>=64 and frame.height>=64 and (frame.width>128 or frame.height>128):
       frame=frame.crop((0,0,64,64))
-     frame.thumbnail((max(48,78*size),max(48,82*size)))
+     frame.thumbnail((max(48,78*size),max(48,82*size)),Image.Resampling.NEAREST)
      photo=ImageTk.PhotoImage(frame,master=canvas)
     canvas.create_image(x,y,image=photo,anchor='center')
     canvas._ace_characters=getattr(canvas,'_ace_characters',[])+[photo]
@@ -181,7 +181,8 @@ class App(tk.Tk):
    cv.create_text(round(w*.24),round(h*.9),text=hero['name']+'  HP '+str(hero['hp']),fill='#ffeac0',font=('Georgia',13,'bold'))
    enemy=self.c['enemy']
    cv.create_oval(round(w*.67),round(h*.79),round(w*.91),round(h*.85),fill='#403c35',outline='#c5a16e',width=2)
-   art.enemy(cv,round(w*.78),round(h*.55),enemy['name'],self.c['world_seed'],size)
+   if not self._pixel_asset(cv,'body',{'enemy':str(enemy['name']).lower().replace(' ','_')},min(180,int(w*.32)),min(180,int(h*.65)),round(w*.78),round(h*.55)):
+    art.enemy(cv,round(w*.78),round(h*.55),enemy['name'],self.c['world_seed'],size)
    cv.create_text(round(w*.75),round(h*.92),text=enemy['name']+'  HP '+str(enemy['hp']),fill='#ffeac0',font=('Georgia',12,'bold'))
    if self.last_visual_cue:
     effect=self.last_visual_cue.effect
