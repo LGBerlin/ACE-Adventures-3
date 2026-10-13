@@ -17,8 +17,8 @@ PANEL_ALIASES = {
     'Story Tree': ('story tree','story map'),
     'Journal': ('journal','quest journal','quest log'),
 }
-UI_PREFIX = re.compile(r'^(?:please\\s+)?(?:show|open|view|display|check|look at)\\s+(?:me\\s+)?(?:my\\s+|the\\s+)?', re.I)
-SPELL = re.compile(r'^(?:i\\s+)?(?:cast|use|invoke)\\s+(?:a\\s+|the\\s+|my\\s+)?([\\w \\-]+?)(?:\\s+(?:at|on|toward|towards)\\s+.+)?[.!]?$',re.I)
+UI_PREFIX = re.compile(r'^(?:please\s+)?(?:show|open|view|display|check|look at)\s+(?:me\s+)?(?:my\s+|the\s+)?', re.I)
+SPELL = re.compile(r'^(?:i\s+)?(?:cast|use|invoke)\s+(?:a\s+|the\s+|my\s+)?([\w \-]+?)(?:\s+(?:at|on|toward|towards)\s+.+)?[.!]?$',re.I)
 
 def route(text, campaign):
     """Return {kind,panel/text} without changing any campaign state."""
